@@ -15,6 +15,25 @@ import { Platform, StyleSheet } from 'react-native';
 /** Vertical page gradient, top -> bottom. Pink dawn fading into warm paper. */
 export const CanvasGradient = ['#F0D8E6', '#FADDCD', '#FBF4F1', '#FDFAF8'] as const;
 
+/**
+ * The canvas at four points through the day, interpolated by solar altitude in
+ * `lib/sun-colors.ts`. All four are four-stop gradients so any pair can be
+ * blended stop-for-stop.
+ *
+ * The lower stops stay near-white across every phase on purpose: cards and body
+ * text sit down there, and tinting that region would wreck contrast.
+ */
+export const SkyGradients = {
+  /** Sun below the horizon — dusky mauve. */
+  night: ['#C4B2D6', '#DCC7D6', '#F0E6EA', '#F9F4F6'],
+  /** Sunrise and sunset — the pink and peach of the reference design. */
+  horizon: CanvasGradient,
+  /** Golden hour, warmer and yellower than the horizon. */
+  golden: ['#F7DFC9', '#FDE8C6', '#FDF6EC', '#FEFBF7'],
+  /** Full daylight — the sky actually goes blue. */
+  day: ['#BAD7F2', '#D4E6F8', '#EEF5FC', '#FAFCFE'],
+} as const;
+
 /** The sun disc / icon gradient, top -> bottom. Neutral mid-morning default. */
 export const SunGradient = ['#FFC978', '#FF9C3F', '#F4761B'] as const;
 
@@ -83,6 +102,8 @@ export const Colors = {
 
   tabBar: 'rgba(255, 255, 255, 0.88)',
   separator: 'rgba(22, 22, 26, 0.06)',
+  /** Hairline highlight along the top edge of frosted surfaces. */
+  borderLight: 'rgba(255, 255, 255, 0.7)',
   white: '#FFFFFF',
 } as const;
 

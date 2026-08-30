@@ -125,6 +125,44 @@ export interface FormattedTime {
 }
 
 /**
+ * Timezone label for display.
+ *
+ * Hermes ships a reduced ICU compared to a browser: for many non-US zones
+ * `timeZoneName: 'short'` comes back as a bare "GMT" instead of "GMT+2" or
+ * "CEST". That is not merely unhelpful, it is wrong — a Brussels time labelled
+ * "GMT" reads as UTC, two hours off.
+ *
+ * So a bare GMT/UTC name is only trusted when the zone really is at zero
+ * offset; otherwise the offset is computed from the zone itself and rendered
+ * explicitly. Real abbreviations (EDT, JST, CEST) are passed straight through.
+ */
+function getZoneLabel(date: Date, timeZone: string): string {
+  const shortName =
+    partsToRecord(
+      createFormatter({ timeZone, hour: 'numeric', timeZoneName: 'short' }).formatToParts(date),
+    ).timeZoneName ?? '';
+
+  if (shortName !== '' && !/^(GMT|UTC)$/i.test(shortName)) {
+    return shortName;
+  }
+
+  const offsetMs = getTimeZoneOffsetMs(date, timeZone);
+  if (offsetMs === 0) {
+    return 'UTC';
+  }
+
+  const totalMinutes = Math.round(offsetMs / MS_PER_MINUTE);
+  const sign = totalMinutes < 0 ? '-' : '+';
+  const absolute = Math.abs(totalMinutes);
+  const hours = Math.floor(absolute / 60);
+  const minutes = absolute % 60;
+
+  return minutes === 0
+    ? `GMT${sign}${hours}`
+    : `GMT${sign}${hours}:${String(minutes).padStart(2, '0')}`;
+}
+
+/**
  * Splits a time into its display parts so the UI can size them independently.
  * Never pre-concatenated: the hero renders `time` at 48pt and `period`/`tz` at 13pt.
  */
@@ -139,7 +177,6 @@ export function formatTime(date: Date | null | undefined, timeZone: string): For
       hour: 'numeric',
       minute: '2-digit',
       hour12: true,
-      timeZoneName: 'short',
     }).formatToParts(date),
   );
 
@@ -149,7 +186,7 @@ export function formatTime(date: Date | null | undefined, timeZone: string): For
   return {
     time: `${hour}:${minute}`,
     period: (parts.dayPeriod ?? '').toUpperCase(),
-    tz: parts.timeZoneName ?? '',
+    tz: getZoneLabel(date, timeZone),
   };
 }
 

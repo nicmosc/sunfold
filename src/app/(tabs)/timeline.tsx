@@ -14,7 +14,7 @@ import { useLocation } from '@/hooks/use-location';
 import { formatDuration, formatTime } from '@/lib/format';
 import { DEFAULT_LOCATION } from '@/lib/location';
 import { getDayProgress, getDaylightRemaining, getDaySummary, getSunPosition } from '@/lib/sun';
-import { getPhaseAccent, getSunGradient } from '@/lib/sun-colors';
+import { getPhaseAccent, getSkyGradient, getSunGradient } from '@/lib/sun-colors';
 import type { SunEventKey } from '@/lib/types';
 
 const MS_PER_MINUTE = 60_000;
@@ -84,6 +84,10 @@ export default function TimelineScreen() {
   const daylight = useMemo(() => getDaylightRemaining(minuteNow, loc), [minuteNow, loc]);
   const progress = useMemo(() => getDayProgress(minuteNow, loc), [minuteNow, loc]);
 
+  /* Shared with Home so the canvas matches when switching tabs. */
+  const sunAltitude = getSunPosition(minuteNow, loc).altitude;
+  const skyGradient = getSkyGradient(sunAltitude);
+
   const remaining = formatDuration(daylight.remainingMs);
   const sunriseTime = formatTime(summary.sunrise, loc.timeZone);
   const sunsetTime = formatTime(summary.sunset, loc.timeZone);
@@ -96,7 +100,7 @@ export default function TimelineScreen() {
   }
 
   return (
-    <GradientBackground>
+    <GradientBackground colors={skyGradient}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <ScreenHeader
           left={
@@ -120,7 +124,7 @@ export default function TimelineScreen() {
         />
 
         <View style={styles.sun}>
-          <SunDisc size={SUN_SIZE} gradient={getSunGradient(getSunPosition(minuteNow, loc).altitude)} />
+          <SunDisc size={SUN_SIZE} gradient={getSunGradient(sunAltitude)} />
         </View>
 
         <Card contentStyle={styles.listCard}>

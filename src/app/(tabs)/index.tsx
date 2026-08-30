@@ -1,7 +1,17 @@
 import { BlurView } from 'expo-blur';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useState } from 'react';
-import { AppState, LayoutChangeEvent, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import {
+  AppState,
+  LayoutChangeEvent,
+  Modal,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { Card, CardDivider } from '@/components/ui/card';
 import { EventRow, NO_EVENT_TIME } from '@/components/ui/event-row';
@@ -10,21 +20,33 @@ import { PillButton } from '@/components/ui/pill-button';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { DayTimeline } from '@/components/viz/day-timeline';
 import { SunSky } from '@/components/viz/sun-sky';
-import { Colors, Radius, Spacing, TabBarInset, Type } from '@/constants/theme';
+import { Colors, Radius, Size, Spacing, TabBarInset, Type } from '@/constants/theme';
 import { useLocation } from '@/hooks/use-location';
 import { formatCountdown, formatRelativeDay, formatTime, getGreeting } from '@/lib/format';
 import { DEFAULT_LOCATION } from '@/lib/location';
 import { getDayEvents, getDayProgress, getDaySummary, getNextEvent, getSunPosition } from '@/lib/sun';
-import { getPhaseAccent, getSunGradient } from '@/lib/sun-colors';
+import { getPhaseAccent, getSkyGradient, getSunGradient, getSunSize } from '@/lib/sun-colors';
 import type { SunEvent, SunEventKey } from '@/lib/types';
 
 const MS_PER_MINUTE = 60_000;
-const SUN_SIZE = 132;
+/**
+ * The sun swells as it nears the horizon and shrinks at its peak, matching the
+ * apparent size change of the real thing.
+ */
+const SUN_SIZE_HORIZON = 160;
+const SUN_SIZE_PEAK = 106;
 /** Height of the sky band above the horizon line the greeting sits on. */
 const SKY_HEIGHT = 190;
 /** Altitude ratio at or above which the text needs no scrim at all. */
 const SCRIM_FADE_ABOVE = 0.38;
 const SCRIM_MAX_INTENSITY = 60;
+
+/**
+ * Days offered in the picker, relative to today. Yesterday is included because
+ * "what did the light do this morning" is a real question when reviewing a
+ * shoot; a week ahead covers planning one.
+ */
+const DAY_OFFSETS = [-1, 0, 1, 2, 3, 4, 5, 6] as const;
 
 /** Rows shown in the summary card, in order, with the sublabel each should carry. */
 const SUMMARY_ROWS: { key: SunEventKey; sublabel: string }[] = [
@@ -45,7 +67,9 @@ export default function HomeScreen() {
   const [dayOffset, setDayOffset] = useState(0);
   const [timelineWidth, setTimelineWidth] = useState(0);
   const [skyWidth, setSkyWidth] = useState(0);
+  const [headerHeight, setHeaderHeight] = useState(0);
   const [scrubProgress, setScrubProgress] = useState<number | null>(null);
+  const [isDayPickerOpen, setIsDayPickerOpen] = useState(false);
 
   /*
    * Ticks the hero countdown once a second, but only while the app is in the
@@ -149,6 +173,9 @@ export default function HomeScreen() {
       SCRIM_MAX_INTENSITY,
   );
 
+  const sunSize = getSunSize(altitudeRatio, SUN_SIZE_HORIZON, SUN_SIZE_PEAK);
+  const skyGradient = getSkyGradient(sunAltitude);
+
   const countdown =
     nextEvent === null ? null : formatCountdown(nextEvent.date.getTime() - now.getTime());
 
@@ -175,12 +202,66 @@ export default function HomeScreen() {
     setSkyWidth(event.nativeEvent.layout.width);
   }
 
+  /*
+   * The pinned sky layer sits directly below the header, so it has to know how
+   * tall the header actually is — that varies with the safe-area inset, which
+   * differs between devices and cannot be hardcoded.
+   */
+  function handleHeaderLayout(event: LayoutChangeEvent) {
+    setHeaderHeight(event.nativeEvent.layout.height);
+  }
+
+  /*
+   * Each option carries that day's own sunrise and sunset, so the picker
+   * doubles as a week-at-a-glance — the point of looking a few days ahead is
+   * usually to see how the light is shifting, not just to change a label.
+   */
+  const dayOptions = DAY_OFFSETS.map((offset) => {
+    const date = new Date(minuteNow);
+    date.setDate(date.getDate() + offset);
+    const daySummary = getDaySummary(date, loc);
+
+    return {
+      offset,
+      label: formatRelativeDay(date, loc.timeZone, minuteNow),
+      sunrise: formatTime(daySummary.sunrise, loc.timeZone),
+      sunset: formatTime(daySummary.sunset, loc.timeZone),
+    };
+  });
+
+  function handleSelectDay(offset: number) {
+    setDayOffset(offset);
+    setScrubProgress(null);
+    setIsDayPickerOpen(false);
+  }
+
   return (
-    <GradientBackground>
+    <GradientBackground colors={skyGradient}>
+      {/*
+        The sun is pinned outside the ScrollView rather than scrolling with it,
+        so the content rides up and over it. Sibling order matters: this layer
+        is first, so everything in the ScrollView paints on top of it.
+      */}
+      <View
+        style={[styles.skyLayer, { top: headerHeight }]}
+        pointerEvents="none"
+        onLayout={handleSkyLayout}>
+        <SunSky
+          width={skyWidth}
+          height={SKY_HEIGHT}
+          size={sunSize}
+          altitude={sunAltitude}
+          peakAltitude={peakAltitude}
+          progress={timelineProgress}
+          gradient={sunGradient}
+        />
+      </View>
+
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}>
+        <View onLayout={handleHeaderLayout}>
         <ScreenHeader
           left={
             <PillButton
@@ -188,7 +269,7 @@ export default function HomeScreen() {
               trailingIcon={
                 <SymbolView name="chevron.down" size={12} tintColor={Colors.textSecondary} />
               }
-              onPress={() => setDayOffset((offset) => (offset === 0 ? 1 : 0))}
+              onPress={() => setIsDayPickerOpen(true)}
             />
           }
           right={
@@ -201,24 +282,13 @@ export default function HomeScreen() {
             />
           }
         />
+        </View>
 
         {/*
-          The sky and the text below it are siblings on purpose: the sun
-          overflows the bottom of SunSky, and because the scrim is the later
-          sibling it paints over the disc. That is what lets the sun rise from
-          behind the greeting instead of floating above it.
+          Reserves the space the pinned sun occupies. Scrolling slides the scrim
+          up over it, which is what makes the sun disappear behind the content.
         */}
-        <View onLayout={handleSkyLayout}>
-          <SunSky
-            width={skyWidth}
-            height={SKY_HEIGHT}
-            size={SUN_SIZE}
-            altitude={sunAltitude}
-            peakAltitude={peakAltitude}
-            progress={timelineProgress}
-            gradient={sunGradient}
-          />
-        </View>
+        <View style={styles.skySpacer} />
 
         <BlurView intensity={scrimIntensity} tint="light" style={styles.scrim}>
           <Text style={styles.greeting}>
@@ -291,6 +361,57 @@ export default function HomeScreen() {
           })}
         </Card>
       </ScrollView>
+
+      <Modal
+        visible={isDayPickerOpen}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setIsDayPickerOpen(false)}>
+        <GradientBackground edges={['top', 'bottom']}>
+          <ScreenHeader
+            title="Choose a day"
+            right={
+              <PillButton
+                icon={<SymbolView name="xmark" size={16} tintColor={Colors.text} />}
+                accessibilityLabel="Close"
+                onPress={() => setIsDayPickerOpen(false)}
+              />
+            }
+          />
+
+          <ScrollView contentContainerStyle={styles.dayList} showsVerticalScrollIndicator={false}>
+            {dayOptions.map((option) => {
+              const isSelected = option.offset === dayOffset;
+
+              return (
+                <Pressable
+                  key={option.offset}
+                  onPress={() => handleSelectDay(option.offset)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isSelected }}
+                  accessibilityLabel={`${option.label}, sunrise ${option.sunrise.time} ${option.sunrise.period}, sunset ${option.sunset.time} ${option.sunset.period}`}
+                  style={({ pressed }) => [
+                    styles.dayRow,
+                    isSelected && styles.dayRowSelected,
+                    pressed && styles.dayRowPressed,
+                  ]}>
+                  <View style={styles.dayLabels}>
+                    <Text style={styles.dayLabel}>{option.label}</Text>
+                    <Text style={styles.dayTimes}>
+                      {option.sunrise.time} {option.sunrise.period} – {option.sunset.time}{' '}
+                      {option.sunset.period}
+                    </Text>
+                  </View>
+
+                  {isSelected && (
+                    <SymbolView name="checkmark" size={16} tintColor={Colors.accent} />
+                  )}
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </GradientBackground>
+      </Modal>
     </GradientBackground>
   );
 }
@@ -301,6 +422,15 @@ const styles = StyleSheet.create({
     paddingBottom: TabBarInset,
     gap: Spacing.sm,
   },
+  /** Pinned sun layer, inset to match the scroll content's horizontal padding. */
+  skyLayer: {
+    position: 'absolute',
+    left: Spacing.xl,
+    right: Spacing.xl,
+  },
+  skySpacer: {
+    height: SKY_HEIGHT,
+  },
   /*
    * Negative top margin pulls the scrim up over the bottom of the sky band, so
    * the sun is already partly behind the text at altitude 0 rather than
@@ -308,11 +438,13 @@ const styles = StyleSheet.create({
    */
   scrim: {
     marginTop: -Spacing.base,
-    paddingTop: Spacing.base,
-    paddingBottom: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    marginHorizontal: -Spacing.md,
-    borderRadius: Radius.lg,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.base,
+    paddingHorizontal: Spacing.base,
+    marginHorizontal: -Spacing.sm,
+    borderRadius: Radius.xl,
+    borderWidth: Size.hairline,
+    borderColor: Colors.borderLight,
     overflow: 'hidden',
   },
   greeting: {
@@ -363,6 +495,39 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   summaryLabel: {
+    ...Type.caption,
+    color: Colors.textSecondary,
+  },
+  dayList: {
+    paddingHorizontal: Spacing.xl,
+    paddingBottom: Spacing.xxl,
+    gap: Spacing.sm,
+  },
+  dayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.base,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.card,
+    borderWidth: Size.hairline,
+    borderColor: Colors.borderLight,
+  },
+  dayRowSelected: {
+    backgroundColor: Colors.accentMuted,
+  },
+  dayRowPressed: {
+    opacity: 0.7,
+  },
+  dayLabels: {
+    gap: Spacing.xs,
+  },
+  dayLabel: {
+    ...Type.label,
+    color: Colors.text,
+  },
+  dayTimes: {
     ...Type.caption,
     color: Colors.textSecondary,
   },

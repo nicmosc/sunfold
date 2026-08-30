@@ -1,9 +1,12 @@
-import { PhaseAccents, SunPhaseGradients } from '@/constants/theme';
+import { PhaseAccents, SkyGradients, SunPhaseGradients } from '@/constants/theme';
 
 import type { SunEventKey } from './types';
 
 /** A top -> bottom gradient triple for the sun disc. */
 export type SunGradientTriple = readonly [string, string, string];
+
+/** A four-stop top -> bottom gradient for the page canvas. */
+export type SkyGradientStops = readonly [string, string, string, string];
 
 /**
  * Solar altitude, in degrees, at which each gradient takes over. Between two
@@ -86,6 +89,70 @@ export function getSunGradient(altitudeDegrees: number): SunGradientTriple {
   }
 
   return SunPhaseGradients.golden;
+}
+
+/** Altitudes at which each sky takes over, blended in between. */
+const SKY_STOPS: { altitude: number; gradient: SkyGradientStops }[] = [
+  { altitude: -8, gradient: SkyGradients.night },
+  { altitude: 0, gradient: SkyGradients.horizon },
+  { altitude: 8, gradient: SkyGradients.golden },
+  { altitude: 30, gradient: SkyGradients.day },
+];
+
+function lerpStops(from: SkyGradientStops, to: SkyGradientStops, t: number): SkyGradientStops {
+  return [
+    lerpColor(from[0], to[0], t),
+    lerpColor(from[1], to[1], t),
+    lerpColor(from[2], to[2], t),
+    lerpColor(from[3], to[3], t),
+  ];
+}
+
+/**
+ * The page canvas for a given solar altitude: mauve at night, pink at the
+ * horizon, warm gold through golden hour, and light blue in full daylight.
+ *
+ * Keyed on absolute altitude rather than a per-day ratio, unlike the sun's
+ * vertical position — the sky's colour depends on how high the sun actually is,
+ * not on how high it manages to get that particular day. A shallow winter noon
+ * genuinely does stay pinker than a summer one.
+ */
+export function getSkyGradient(altitudeDegrees: number): SkyGradientStops {
+  if (!Number.isFinite(altitudeDegrees)) {
+    return SkyGradients.horizon;
+  }
+
+  const first = SKY_STOPS[0];
+  const last = SKY_STOPS[SKY_STOPS.length - 1];
+
+  if (altitudeDegrees <= first.altitude) return first.gradient;
+  if (altitudeDegrees >= last.altitude) return last.gradient;
+
+  for (let index = 0; index < SKY_STOPS.length - 1; index += 1) {
+    const lower = SKY_STOPS[index];
+    const upper = SKY_STOPS[index + 1];
+
+    if (altitudeDegrees >= lower.altitude && altitudeDegrees <= upper.altitude) {
+      const span = upper.altitude - lower.altitude;
+      const t = span === 0 ? 0 : (altitudeDegrees - lower.altitude) / span;
+      return lerpStops(lower.gradient, upper.gradient, t);
+    }
+  }
+
+  return SkyGradients.horizon;
+}
+
+/**
+ * Sun diameter for a given position in the day, largest at the horizon and
+ * smallest at the day's peak — the same apparent swelling the sun has low in
+ * the sky.
+ *
+ * Takes a ratio against the day's own peak rather than absolute degrees, so the
+ * sun still visibly shrinks as it climbs on a day when it never gets high.
+ */
+export function getSunSize(altitudeRatio: number, atHorizon: number, atPeak: number): number {
+  const t = clamp01(altitudeRatio);
+  return atHorizon + (atPeak - atHorizon) * t;
 }
 
 /**

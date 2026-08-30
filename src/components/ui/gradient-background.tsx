@@ -17,6 +17,11 @@ export interface GradientBackgroundProps {
    * here as well would double up.
    */
   edges?: readonly Edge[];
+  /**
+   * Gradient stops, top -> bottom. Pass the output of `getSkyGradient(altitude)`
+   * to make the canvas track the real sky. Defaults to the static brand canvas.
+   */
+  colors?: readonly [string, string, ...string[]];
 }
 
 /** Vertical page gradient, top -> bottom, per the design canvas. */
@@ -29,11 +34,12 @@ export function GradientBackground({
   children,
   style,
   edges = DEFAULT_EDGES,
+  colors = CanvasGradient,
 }: GradientBackgroundProps) {
   return (
     <View style={[styles.root, style]}>
       <LinearGradient
-        colors={CanvasGradient}
+        colors={colors}
         start={GRADIENT_START}
         end={GRADIENT_END}
         style={styles.gradient}

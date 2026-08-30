@@ -1,6 +1,6 @@
 import { useId } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Svg, { Circle, Defs, Ellipse, LinearGradient, RadialGradient, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, Ellipse, RadialGradient, Stop } from 'react-native-svg';
 
 import { Colors, SunGradient } from '@/constants/theme';
 
@@ -48,6 +48,8 @@ export function SunDisc({ size, showHorizon = true, gradient = SunGradient }: Su
   const rawId = useId();
   const uid = rawId.replace(/:/g, '');
   const sunId = `sun-disc-fill-${uid}`;
+  const sheenId = `sun-disc-sheen-${uid}`;
+  const rimId = `sun-disc-rim-${uid}`;
   const glowId = `sun-disc-glow-${uid}`;
   const horizonId = `sun-disc-horizon-${uid}`;
 
@@ -64,11 +66,28 @@ export function SunDisc({ size, showHorizon = true, gradient = SunGradient }: Su
       importantForAccessibility="no-hide-descendants">
       <Svg width={size} height={size} viewBox={`0 0 ${VIEW_BOX} ${VIEW_BOX}`}>
         <Defs>
-          <LinearGradient id={sunId} x1="0" y1="0" x2="0" y2="1">
+          {/*
+            Radial rather than linear, with the centre pushed up and left. A
+            linear top-to-bottom ramp reads as a flat disc; offsetting a radial
+            one puts the light source above the sphere and lets the terminator
+            curve around the lower edge, which is what makes it read as a ball.
+          */}
+          <RadialGradient id={sunId} cx="42%" cy="32%" r="78%">
             <Stop offset="0" stopColor={gradient[0]} />
-            <Stop offset="0.55" stopColor={gradient[1]} />
+            <Stop offset="0.5" stopColor={gradient[1]} />
             <Stop offset="1" stopColor={gradient[2]} />
-          </LinearGradient>
+          </RadialGradient>
+          {/* Specular sheen — a small bright spot offset toward the light. */}
+          <RadialGradient id={sheenId} cx="38%" cy="26%" r="42%">
+            <Stop offset="0" stopColor={Colors.white} stopOpacity="0.5" />
+            <Stop offset="0.55" stopColor={Colors.white} stopOpacity="0.14" />
+            <Stop offset="1" stopColor={Colors.white} stopOpacity="0" />
+          </RadialGradient>
+          {/* Bounce light along the bottom rim, so the shaded side is not dead. */}
+          <RadialGradient id={rimId} cx="50%" cy="88%" r="55%">
+            <Stop offset="0" stopColor={gradient[1]} stopOpacity="0.55" />
+            <Stop offset="1" stopColor={gradient[1]} stopOpacity="0" />
+          </RadialGradient>
           {/* The bloom picks up the disc's own top colour so it warms with it. */}
           <RadialGradient id={glowId} cx="50%" cy="50%" r="50%">
             <Stop offset="0" stopColor={gradient[0]} stopOpacity="0.45" />
@@ -89,7 +108,10 @@ export function SunDisc({ size, showHorizon = true, gradient = SunGradient }: Su
         </Defs>
 
         <Circle cx={SUN_CENTER} cy={SUN_CENTER} r={GLOW_RADIUS} fill={`url(#${glowId})`} />
+        {/* Body, then bounce light, then sheen — painted back to front. */}
         <Circle cx={SUN_CENTER} cy={SUN_CENTER} r={SUN_RADIUS} fill={`url(#${sunId})`} />
+        <Circle cx={SUN_CENTER} cy={SUN_CENTER} r={SUN_RADIUS} fill={`url(#${rimId})`} />
+        <Circle cx={SUN_CENTER} cy={SUN_CENTER} r={SUN_RADIUS} fill={`url(#${sheenId})`} />
 
         {/*
           Drawn as an ellipse rather than the closed curve: the curve's straight

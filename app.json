@@ -1,0 +1,51 @@
+{
+  "expo": {
+    "name": "Golden Hour",
+    "slug": "golden-hour",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "goldenhour",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.nicolaos.goldenhour",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Golden Hour uses your location to calculate the sunrise, sunset, golden hour and blue hour times for exactly where you are. Your location stays on your device and is never uploaded or shared.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.nicolaos.goldenhour",
+      "adaptiveIcon": {
+        "backgroundColor": "#FBF4F1",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#FBF4F1",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 76
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Golden Hour uses your location to calculate the sunrise, sunset, golden hour and blue hour times for exactly where you are. Your location stays on your device and is never uploaded or shared."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

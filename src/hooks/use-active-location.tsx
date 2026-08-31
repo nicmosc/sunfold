@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 
+import { useCities } from '@/hooks/use-cities';
 import { useLocation } from '@/hooks/use-location';
 import { DEFAULT_LOCATION, getLocationKey, isLocation } from '@/lib/location';
 import { getItem, removeItem, setItem, StorageKeys } from '@/lib/storage';
@@ -35,7 +36,10 @@ const ActiveLocationContext = createContext<ActiveLocationContextValue | null>(n
  */
 export function ActiveLocationProvider({ children }: { children: ReactNode }) {
   const { location: deviceLocation, error: deviceError, refresh } = useLocation();
+  const { cities, isLoading: citiesLoading } = useCities();
   const [pinned, setPinned] = useState<Location | null>(null);
+
+  const citiesLoaded = !citiesLoading;
 
   useEffect(() => {
     let cancelled = false;
@@ -65,13 +69,31 @@ export function ActiveLocationProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<ActiveLocationContextValue>(() => {
     /*
-     * Precedence: an explicit pin, then the device, then New York. The last
-     * fallback matters — the app must render something on a denied permission
-     * rather than sit blank.
+     * A pin whose city has been deleted must stop driving the app. Resolved by
+     * DERIVING rather than by clearing the pin in an effect: an effect would
+     * both trip `react-hooks/set-state-in-effect` and render one frame of the
+     * removed city before correcting itself.
+     *
+     * Gated on `citiesLoaded` — the saved list arrives from disk a tick after
+     * mount, and treating a perfectly good pin as stale during that window
+     * would flicker to the device location and back on every launch.
      */
-    const resolved = pinned ?? deviceLocation ?? DEFAULT_LOCATION;
+    const isStalePin =
+      pinned !== null &&
+      citiesLoaded &&
+      !cities.some((city) => getLocationKey(city) === getLocationKey(pinned));
+
+    const activePin = isStalePin ? null : pinned;
+
+    /*
+     * Precedence: a live pin, the device, the first remaining saved city, then
+     * New York. The saved-city step is what catches deleting the active city
+     * while location permission is denied — without it the app would jump to
+     * New York even though the user has other cities saved.
+     */
+    const resolved = activePin ?? deviceLocation ?? cities[0] ?? DEFAULT_LOCATION;
     const isDevice =
-      pinned === null &&
+      activePin === null &&
       deviceLocation !== null &&
       getLocationKey(resolved) === getLocationKey(deviceLocation);
 
@@ -84,7 +106,16 @@ export function ActiveLocationProvider({ children }: { children: ReactNode }) {
       followDevice,
       refreshDevice: refresh,
     };
-  }, [pinned, deviceLocation, deviceError, setLocation, followDevice, refresh]);
+  }, [
+    pinned,
+    cities,
+    citiesLoaded,
+    deviceLocation,
+    deviceError,
+    setLocation,
+    followDevice,
+    refresh,
+  ]);
 
   return <ActiveLocationContext.Provider value={value}>{children}</ActiveLocationContext.Provider>;
 }

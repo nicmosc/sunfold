@@ -50,12 +50,12 @@ SUN_STOPS = [
 ]
 
 # Geometry as fractions of the canvas.
-SUN_CX, SUN_CY, SUN_R = 0.50, 0.380, 0.215
+SUN_CX, SUN_CY, SUN_R = 0.50, 0.510, 0.315
 # Deliberately larger than the canvas on every axis, so no edge of the dome is
 # ever visible inside the frame.
-DOME_CX, DOME_CY = 0.50, 0.86
-DOME_RX, DOME_RY = 0.53, 0.42
-HAZE_CY, HAZE_R = 0.50, 0.225
+DOME_CX, DOME_CY = 0.50, 1.03
+DOME_RX, DOME_RY = 0.598, 0.42
+HAZE_CY, HAZE_R = 0.66, 0.255
 
 # The dome is glass, not paint: it is most transparent directly over the sun so
 # the sphere genuinely shows through, and closes up toward its edges. The visible

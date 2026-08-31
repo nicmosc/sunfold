@@ -32,6 +32,14 @@ const OUTLOOK_MAX_DAYS = 400;
 /** Emitted dates are limited to the 12 months following `from`. */
 const NOTABLE_WINDOW_DAYS = 366;
 
+/**
+ * How far the sun's peak altitude must sit from the horizon before that altitude
+ * alone is trusted to settle polar day vs polar night. See `probeDay`: suncalc's
+ * two code paths disagree by a few tenths of a degree right at the boundary, so
+ * this leaves an order of magnitude of margin and defers inside it.
+ */
+const POLAR_VERDICT_MARGIN_DEG = 2;
+
 /* -------------------------------------------------------------------------- */
 /* Types                                                                       */
 /* -------------------------------------------------------------------------- */
@@ -187,20 +195,30 @@ function probeDay(anchor: Date, loc: Location): DayProbe {
   if (sunrise === null && sunset === null) {
     /*
      * The sun never crossed the rise/set altitude, so it stayed on one side of
-     * it all day — but WHICH side cannot be read off the sun's altitude. suncalc
-     * decides rise/set against -0.833°, which folds in refraction and the solar
-     * disc, while `getSunPosition` reports a bare geometric altitude; at the
-     * boundary the two disagree by a few tenths of a degree. Tromsø on
+     * it all day. WHICH side is usually obvious: the day's peak altitude, at
+     * solar noon, is on that side. But it is NOT reliable near the horizon —
+     * suncalc tests rise/set against -0.833°, folding in refraction and the
+     * solar disc, while `getSunPosition` reports a bare geometric altitude, and
+     * the two disagree by a few tenths of a degree at the boundary. Tromsø on
      * 28 Nov 2026 is the case in point: suncalc reports polar night, yet the
      * geometric altitude at solar noon is -0.51°, *above* the threshold.
      *
-     * So suncalc's own verdict is asked for. `getDaySummary` costs four suncalc
-     * calls, but it is only reached on days already known to be polar — i.e.
-     * never at all outside the Arctic and Antarctic circles.
+     * So the cheap test is trusted only well clear of the horizon, where it is
+     * not an estimate but a certainty — a peak of +2° means the sun WAS up, so
+     * the day cannot be a polar night. Inside the margin, suncalc's own verdict
+     * is asked for via `getDaySummary`, which costs four suncalc calls but is
+     * reached only for the handful of days each year that straddle the boundary.
      */
-    const summary = getDaySummary(anchor, loc);
-    isPolarDay = summary.isPolarDay;
-    isPolarNight = summary.isPolarNight;
+    const peak = solarNoon === null ? null : getSunPosition(solarNoon, loc).altitude;
+
+    if (peak !== null && Number.isFinite(peak) && Math.abs(peak) > POLAR_VERDICT_MARGIN_DEG) {
+      isPolarDay = peak > 0;
+      isPolarNight = !isPolarDay;
+    } else {
+      const summary = getDaySummary(anchor, loc);
+      isPolarDay = summary.isPolarDay;
+      isPolarNight = summary.isPolarNight;
+    }
   }
 
   return {
@@ -222,7 +240,7 @@ function probeDay(anchor: Date, loc: Location): DayProbe {
 /**
  * Day length with the polar cases filled in — a full 24 h when the sun never
  * sets, none at all when it never rises — so the annual extremes still resolve
- * above the Arctic Circle, where `dayLengthMs` is null for months at a time.
+ * at polar latitudes, where `dayLengthMs` is null for months at a time.
  */
 function effectiveDayLengthMs(day: DayScan): number | null {
   if (day.dayLengthMs !== null) {

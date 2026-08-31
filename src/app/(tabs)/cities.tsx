@@ -2,128 +2,183 @@ import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import {
   FlatList,
-  Modal,
   Pressable,
   StyleSheet,
   Text,
   View,
   type ListRenderItemInfo,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Card, CardDivider } from '@/components/ui/card';
 import { GradientBackground } from '@/components/ui/gradient-background';
 import { PillButton } from '@/components/ui/pill-button';
 import { ScreenHeader } from '@/components/ui/screen-header';
-import { Colors, Radius, Spacing, TabBarInset, Type } from '@/constants/theme';
+import { OptionRow, Sheet } from '@/components/ui/sheet';
+import { Colors, Size, Spacing, TabBarInset, Type } from '@/constants/theme';
+import { useActiveLocation } from '@/hooks/use-active-location';
 import { useCities } from '@/hooks/use-cities';
-import { useLocation } from '@/hooks/use-location';
+import { useSettings } from '@/hooks/use-settings';
 import { formatCountdown, formatTime } from '@/lib/format';
-import { DEFAULT_LOCATION, getLocationKey, PRESET_CITIES } from '@/lib/location';
+import { getLocationKey, PRESET_CITIES } from '@/lib/location';
 import { getDaySummary, getNextEvent, getSunPosition } from '@/lib/sun';
-import { getSkyGradient } from '@/lib/sun-colors';
+import { getPhaseAccent, getSkyGradient } from '@/lib/sun-colors';
 import type { Location } from '@/lib/types';
+
+/**
+ * The light right now, as a phrase rather than a number. This is the thing the
+ * screen exists to answer: where is the light good at this moment.
+ *
+ * Thresholds are the ones photographers use — golden hour is the sun between 0
+ * and 6 degrees, civil twilight down to −6.
+ */
+function describeLight(altitude: number): { label: string; accent: string } {
+  if (altitude >= 6) return { label: 'Daylight', accent: getPhaseAccent('solarNoon') };
+  if (altitude >= 0) return { label: 'Golden hour', accent: getPhaseAccent('goldenHourMorningEnd') };
+  if (altitude >= -6) return { label: 'Blue hour', accent: getPhaseAccent('blueHourMorningStart') };
+  if (altitude >= -18) return { label: 'Twilight', accent: getPhaseAccent('firstLight') };
+  return { label: 'Night', accent: getPhaseAccent('nadir') };
+}
 
 interface CityCardProps {
   city: Location;
+  isActive: boolean;
+  hour12: boolean;
+  onSelect: (city: Location) => void;
   onRemove: (city: Location) => void;
 }
 
 /**
  * One saved city.
  *
- * Every time on this card is formatted in the CITY's own timezone, never the
- * device's — that distinction is the entire point of this screen.
+ * Every time here is formatted in the CITY's own timezone, never the device's.
+ * That is the entire point of the screen, and getting it wrong would look
+ * completely plausible while being hours out.
  */
-function CityCard({ city, onRemove }: CityCardProps) {
+function CityCard({ city, isActive, hour12, onSelect, onRemove }: CityCardProps) {
   const now = new Date();
   const summary = getDaySummary(now, city);
   const next = getNextEvent(now, city);
+  const altitude = getSunPosition(now, city).altitude;
+  const light = describeLight(altitude);
 
-  const sunrise = formatTime(summary.sunrise, city.timeZone);
-  const sunset = formatTime(summary.sunset, city.timeZone);
+  const sunrise = formatTime(summary.sunrise, city.timeZone, hour12);
+  const sunset = formatTime(summary.sunset, city.timeZone, hour12);
+  const localNow = formatTime(now, city.timeZone, hour12);
 
   return (
-    <Card style={styles.cityCard}>
-      <View style={styles.cityHeader}>
-        <View style={styles.cityNameBlock}>
-          <Text style={styles.cityName}>{city.name}</Text>
-          {next !== null && (
-            <Text style={styles.cityNext}>
-              {next.event.label} in{' '}
-              <Text style={styles.cityNextValue}>
-                {formatCountdown(next.date.getTime() - now.getTime())}
+    <Pressable
+      onPress={() => onSelect(city)}
+      accessibilityRole="button"
+      accessibilityState={{ selected: isActive }}
+      accessibilityLabel={`${city.name}, ${light.label}, local time ${localNow.time} ${localNow.period}. Tap to show this location.`}>
+      <Card style={[styles.cityCard, isActive && styles.cityCardActive]}>
+        <View style={styles.cityHeader}>
+          <View style={styles.cityNameBlock}>
+            <View style={styles.cityNameRow}>
+              <Text style={styles.cityName}>{city.name}</Text>
+              {isActive && (
+                <SymbolView name="location.fill" size={13} tintColor={Colors.accent} />
+              )}
+            </View>
+            <Text style={[styles.lightLabel, { color: light.accent }]}>
+              {light.label}
+              <Text style={styles.localTime}>
+                {'  ·  '}
+                {localNow.time}
+                {localNow.period === '' ? '' : ` ${localNow.period}`} local
               </Text>
             </Text>
-          )}
+          </View>
+
+          <Pressable
+            onPress={() => onRemove(city)}
+            hitSlop={Spacing.md}
+            accessibilityRole="button"
+            accessibilityLabel={`Remove ${city.name}`}>
+            <SymbolView name="xmark.circle.fill" size={22} tintColor={Colors.textTertiary} />
+          </Pressable>
         </View>
 
-        <Pressable
-          onPress={() => onRemove(city)}
-          hitSlop={Spacing.md}
-          accessibilityRole="button"
-          accessibilityLabel={`Remove ${city.name}`}>
-          <SymbolView name="xmark.circle.fill" size={22} tintColor={Colors.textTertiary} />
-        </Pressable>
-      </View>
+        <CardDivider />
 
-      <CardDivider />
-
-      <View style={styles.cityTimes}>
-        <View style={styles.cityTimeCell}>
-          <Text style={styles.cityTimeLabel}>Sunrise</Text>
-          <View style={styles.cityTimeValueRow}>
+        <View style={styles.cityTimes}>
+          <View style={styles.cityTimeCell}>
+            <Text style={styles.cityTimeLabel}>Sunrise</Text>
             <Text style={styles.cityTimeValue}>{sunrise.time}</Text>
-            <Text style={styles.cityTimeUnit}>{sunrise.period}</Text>
           </View>
-        </View>
 
-        <View style={styles.cityTimeCell}>
-          <Text style={styles.cityTimeLabel}>Sunset</Text>
-          <View style={styles.cityTimeValueRow}>
+          <View style={styles.cityTimeCell}>
+            <Text style={styles.cityTimeLabel}>Sunset</Text>
             <Text style={styles.cityTimeValue}>{sunset.time}</Text>
-            <Text style={styles.cityTimeUnit}>{sunset.period}</Text>
+          </View>
+
+          <View style={[styles.cityTimeCell, styles.nextCell]}>
+            <Text style={styles.cityTimeLabel}>Next</Text>
+            {next === null ? (
+              <Text style={styles.cityTimeValue}>—</Text>
+            ) : (
+              <Text style={styles.nextValue} numberOfLines={1}>
+                {next.event.label}
+                <Text style={styles.nextCountdown}>
+                  {'  '}
+                  {formatCountdown(next.date.getTime() - now.getTime())}
+                </Text>
+              </Text>
+            )}
           </View>
         </View>
-
-        <View style={styles.cityTimeCell}>
-          <Text style={styles.cityTimeLabel}>Timezone</Text>
-          <Text style={styles.cityTimeZone}>{sunrise.tz || city.timeZone}</Text>
-        </View>
-      </View>
-    </Card>
+      </Card>
+    </Pressable>
   );
 }
 
 export default function CitiesScreen() {
   const { cities, addCity, removeCity, isLoading } = useCities();
-  const { location } = useLocation();
+  const { location, setLocation } = useActiveLocation();
+  const { settings } = useSettings();
   const [isPickerOpen, setIsPickerOpen] = useState(false);
 
-  /*
-   * The canvas follows the sun at the DEVICE's location, matching Home and
-   * Timeline. Tying it to a saved city would be arbitrary — there are several —
-   * and the background changing colour when you switch tabs reads as a bug.
-   */
-  const deviceLocation = location ?? DEFAULT_LOCATION;
-  const skyGradient = getSkyGradient(getSunPosition(new Date(), deviceLocation).altitude);
-
+  const activeKey = getLocationKey(location);
   const savedKeys = new Set(cities.map(getLocationKey));
   const available = PRESET_CITIES.filter((city) => !savedKeys.has(getLocationKey(city)));
+
+  /*
+   * Sorted by how high the sun is right now, so the cities with usable light
+   * rise to the top. That ordering is the reason to have this screen rather
+   * than a plain list.
+   */
+  const sorted = [...cities].sort(
+    (a, b) => getSunPosition(new Date(), b).altitude - getSunPosition(new Date(), a).altitude,
+  );
+
+  const skyGradient = getSkyGradient(getSunPosition(new Date(), location).altitude);
 
   function handleAdd(city: Location) {
     addCity(city);
     setIsPickerOpen(false);
   }
 
+  function handleSelect(city: Location) {
+    void setLocation(city);
+  }
+
   function renderCity({ item }: ListRenderItemInfo<Location>) {
-    return <CityCard city={item} onRemove={removeCity} />;
+    return (
+      <CityCard
+        city={item}
+        isActive={getLocationKey(item) === activeKey}
+        hour12={settings.hour12}
+        onSelect={handleSelect}
+        onRemove={removeCity}
+      />
+    );
   }
 
   return (
     <GradientBackground colors={skyGradient}>
       <ScreenHeader
         title="Cities"
+        subtitle="Tap a city to show its light on Home"
         right={
           <PillButton
             icon={<SymbolView name="plus" size={18} tintColor={Colors.text} />}
@@ -134,7 +189,7 @@ export default function CitiesScreen() {
       />
 
       <FlatList
-        data={cities}
+        data={sorted}
         keyExtractor={getLocationKey}
         renderItem={renderCity}
         contentContainerStyle={styles.list}
@@ -144,56 +199,32 @@ export default function CitiesScreen() {
             <View style={styles.empty}>
               <Text style={styles.emptyTitle}>No cities yet</Text>
               <Text style={styles.emptyBody}>
-                Add a city to compare its light with yours — useful when you are planning a
-                shoot somewhere else.
+                Add a city to see where the light is good right now — and tap one to switch Home
+                to it.
               </Text>
             </View>
           )
         }
       />
 
-      <Modal
+      <Sheet
         visible={isPickerOpen}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setIsPickerOpen(false)}>
-        <GradientBackground edges={['top', 'bottom']}>
-          <SafeAreaView style={styles.modalRoot} edges={['bottom']}>
-            <ScreenHeader
-              title="Add a city"
-              right={
-                <PillButton
-                  icon={<SymbolView name="xmark" size={16} tintColor={Colors.text} />}
-                  accessibilityLabel="Close"
-                  onPress={() => setIsPickerOpen(false)}
-                />
-              }
-            />
-
-            <FlatList
-              data={available}
-              keyExtractor={getLocationKey}
-              contentContainerStyle={styles.list}
-              showsVerticalScrollIndicator={false}
-              ListEmptyComponent={
-                <View style={styles.empty}>
-                  <Text style={styles.emptyBody}>Every available city has been added.</Text>
-                </View>
-              }
-              renderItem={({ item }) => (
-                <Pressable
-                  onPress={() => handleAdd(item)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Add ${item.name}`}
-                  style={({ pressed }) => [styles.presetRow, pressed && styles.presetRowPressed]}>
-                  <Text style={styles.presetName}>{item.name}</Text>
-                  <Text style={styles.presetZone}>{item.timeZone}</Text>
-                </Pressable>
-              )}
-            />
-          </SafeAreaView>
-        </GradientBackground>
-      </Modal>
+        onClose={() => setIsPickerOpen(false)}
+        title="Add a city"
+        subtitle="Works offline — no lookup required">
+        {available.length === 0 && (
+          <Text style={styles.emptyBody}>Every available city has been added.</Text>
+        )}
+        {available.map((city) => (
+          <OptionRow
+            key={getLocationKey(city)}
+            label={city.name}
+            detail={city.timeZone}
+            onPress={() => handleAdd(city)}
+            icon={<SymbolView name="plus.circle" size={16} tintColor={Colors.accent} />}
+          />
+        ))}
+      </Sheet>
     </GradientBackground>
   );
 }
@@ -207,6 +238,11 @@ const styles = StyleSheet.create({
   cityCard: {
     marginTop: Spacing.xs,
   },
+  cityCardActive: {
+    borderWidth: Size.hairline * 2,
+    borderColor: Colors.accentSoft,
+    borderRadius: Spacing.xl,
+  },
   cityHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -217,18 +253,24 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: Spacing.xs,
   },
+  cityNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
   cityName: {
     ...Type.label,
     fontSize: 20,
     color: Colors.text,
   },
-  cityNext: {
+  lightLabel: {
     ...Type.caption,
-    color: Colors.textSecondary,
-  },
-  cityNextValue: {
-    color: Colors.accent,
     fontWeight: '600',
+  },
+  localTime: {
+    ...Type.caption,
+    fontWeight: '400',
+    color: Colors.textSecondary,
   },
   cityTimes: {
     flexDirection: 'row',
@@ -238,27 +280,27 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: Spacing.xs,
   },
-  cityTimeLabel: {
-    ...Type.caption,
-    color: Colors.textSecondary,
+  nextCell: {
+    flex: 1.6,
   },
-  cityTimeValueRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: Spacing.xs,
+  cityTimeLabel: {
+    ...Type.unit,
+    color: Colors.textTertiary,
   },
   cityTimeValue: {
     ...Type.label,
     fontSize: 19,
     color: Colors.text,
   },
-  cityTimeUnit: {
-    ...Type.unit,
-    color: Colors.textSecondary,
+  nextValue: {
+    ...Type.caption,
+    fontWeight: '600',
+    color: Colors.text,
   },
-  cityTimeZone: {
-    ...Type.unit,
-    color: Colors.textSecondary,
+  nextCountdown: {
+    ...Type.caption,
+    fontWeight: '400',
+    color: Colors.accent,
   },
   empty: {
     alignItems: 'center',
@@ -275,28 +317,5 @@ const styles = StyleSheet.create({
     ...Type.body,
     color: Colors.textSecondary,
     textAlign: 'center',
-  },
-  modalRoot: {
-    flex: 1,
-  },
-  presetRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: Spacing.base,
-    paddingHorizontal: Spacing.base,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.card,
-  },
-  presetRowPressed: {
-    backgroundColor: Colors.cardElevated,
-  },
-  presetName: {
-    ...Type.label,
-    color: Colors.text,
-  },
-  presetZone: {
-    ...Type.caption,
-    color: Colors.textSecondary,
   },
 });

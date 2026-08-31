@@ -94,6 +94,8 @@ export const Colors = {
 
   /** Frosted card sitting on the gradient canvas. */
   card: 'rgba(255, 255, 255, 0.58)',
+  /** Light wash layered *on top of* a blur, not a replacement for one. */
+  cardWash: 'rgba(255, 255, 255, 0.3)',
   cardSolid: '#F2F2F5',
   cardElevated: 'rgba(255, 255, 255, 0.82)',
 

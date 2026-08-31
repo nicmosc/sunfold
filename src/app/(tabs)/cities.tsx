@@ -17,9 +17,11 @@ import { PillButton } from '@/components/ui/pill-button';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { Colors, Radius, Spacing, TabBarInset, Type } from '@/constants/theme';
 import { useCities } from '@/hooks/use-cities';
+import { useLocation } from '@/hooks/use-location';
 import { formatCountdown, formatTime } from '@/lib/format';
-import { getLocationKey, PRESET_CITIES } from '@/lib/location';
-import { getDaySummary, getNextEvent } from '@/lib/sun';
+import { DEFAULT_LOCATION, getLocationKey, PRESET_CITIES } from '@/lib/location';
+import { getDaySummary, getNextEvent, getSunPosition } from '@/lib/sun';
+import { getSkyGradient } from '@/lib/sun-colors';
 import type { Location } from '@/lib/types';
 
 interface CityCardProps {
@@ -95,7 +97,16 @@ function CityCard({ city, onRemove }: CityCardProps) {
 
 export default function CitiesScreen() {
   const { cities, addCity, removeCity, isLoading } = useCities();
+  const { location } = useLocation();
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+
+  /*
+   * The canvas follows the sun at the DEVICE's location, matching Home and
+   * Timeline. Tying it to a saved city would be arbitrary — there are several —
+   * and the background changing colour when you switch tabs reads as a bug.
+   */
+  const deviceLocation = location ?? DEFAULT_LOCATION;
+  const skyGradient = getSkyGradient(getSunPosition(new Date(), deviceLocation).altitude);
 
   const savedKeys = new Set(cities.map(getLocationKey));
   const available = PRESET_CITIES.filter((city) => !savedKeys.has(getLocationKey(city)));
@@ -110,7 +121,7 @@ export default function CitiesScreen() {
   }
 
   return (
-    <GradientBackground>
+    <GradientBackground colors={skyGradient}>
       <ScreenHeader
         title="Cities"
         right={

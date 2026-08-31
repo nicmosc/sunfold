@@ -37,9 +37,15 @@ const SUN_SIZE_HORIZON = 160;
 const SUN_SIZE_PEAK = 106;
 /** Height of the sky band above the horizon line the greeting sits on. */
 const SKY_HEIGHT = 190;
-/** Altitude ratio at or above which the text needs no scrim at all. */
+/**
+ * The scrim is a permanent part of the design, so it keeps a floor of blur even
+ * with the sun high and nothing behind the text. It only *intensifies* as the
+ * sun drops in behind it.
+ */
+const SCRIM_MIN_INTENSITY = 30;
+const SCRIM_MAX_INTENSITY = 72;
+/** Altitude ratio at or above which the scrim sits at its floor. */
 const SCRIM_FADE_ABOVE = 0.38;
-const SCRIM_MAX_INTENSITY = 60;
 
 /**
  * Days offered in the picker, relative to today. Yesterday is included because
@@ -127,7 +133,35 @@ export default function HomeScreen() {
   const events = useMemo(() => getDayEvents(selectedDate, loc), [selectedDate, loc]);
   const summary = useMemo(() => getDaySummary(selectedDate, loc), [selectedDate, loc]);
   const nextEvent = useMemo(() => getNextEvent(minuteNow, loc), [minuteNow, loc]);
-  const liveProgress = useMemo(() => getDayProgress(minuteNow, loc), [minuteNow, loc]);
+
+  /*
+   * Where the scrubber sits before anyone touches it, measured against the
+   * SELECTED day rather than today.
+   *
+   * Clamping does the work, and it generalises cleanly:
+   *   - during the selected day's light  -> the live position
+   *   - after its sunset (tonight)       -> pinned to sunset
+   *   - before its sunrise (a later day) -> pinned to sunrise
+   *
+   * Computing this against today's span instead — which is what
+   * `getDayProgress(now, loc)` does — leaves the handle at today's position
+   * while the rows below describe a different day.
+   */
+  const liveProgress = useMemo(() => {
+    const { sunrise, sunset } = summary;
+
+    // Polar day/night: no sunrise or sunset to measure against.
+    if (sunrise === null || sunset === null) {
+      return getDayProgress(minuteNow, loc);
+    }
+
+    const span = sunset.getTime() - sunrise.getTime();
+    if (span <= 0) {
+      return 0;
+    }
+
+    return Math.min(1, Math.max(0, (minuteNow.getTime() - sunrise.getTime()) / span));
+  }, [summary, minuteNow, loc]);
 
   const timelineProgress = scrubProgress ?? liveProgress;
 
@@ -164,13 +198,14 @@ export default function HomeScreen() {
   const altitudeRatio = peakAltitude > 0 ? sunAltitude / peakAltitude : 0;
 
   /*
-   * The scrim only blurs when it needs to. With the sun high there is nothing
-   * behind the text to obscure, so the blur fades out entirely and the pastel
-   * canvas shows through clean.
+   * Blur ramps from a permanent floor up to full as the sun sinks in behind the
+   * text. It deliberately never reaches zero: the frosted panel is part of the
+   * design, and having it disappear around midday read as a rendering bug
+   * rather than an effect.
    */
+  const scrimRamp = Math.min(1, Math.max(0, (SCRIM_FADE_ABOVE - altitudeRatio) / SCRIM_FADE_ABOVE));
   const scrimIntensity = Math.round(
-    Math.min(1, Math.max(0, (SCRIM_FADE_ABOVE - altitudeRatio) / SCRIM_FADE_ABOVE)) *
-      SCRIM_MAX_INTENSITY,
+    SCRIM_MIN_INTENSITY + scrimRamp * (SCRIM_MAX_INTENSITY - SCRIM_MIN_INTENSITY),
   );
 
   const sunSize = getSunSize(altitudeRatio, SUN_SIZE_HORIZON, SUN_SIZE_PEAK);

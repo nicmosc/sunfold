@@ -1,7 +1,11 @@
+import { BlurView } from 'expo-blur';
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { Colors, Radius, Shadow, Size, Spacing, Type } from '@/constants/theme';
+
+/** Enough to read as frosted without turning the card opaque. */
+const CARD_BLUR_INTENSITY = 28;
 
 export interface CardProps {
   children: ReactNode;
@@ -24,7 +28,20 @@ export interface CardProps {
 export function Card({ children, style, contentStyle, title, titleIcon }: CardProps) {
   return (
     <View style={[styles.shadow, style]}>
-      <View style={[styles.surface, contentStyle]}>
+      {/*
+        A real blur rather than a translucent fill. A flat rgba background looks
+        convincing over the pastel canvas but goes thin and washy over the
+        moving sun behind it — the blur keeps the card readable regardless of
+        what passes underneath.
+
+        `overflow: 'hidden'` is required here to clip the blur to the radius.
+        (Note this is the opposite of GlassView, which masks its own corners and
+        breaks if clipped externally.)
+      */}
+      <BlurView
+        intensity={CARD_BLUR_INTENSITY}
+        tint="light"
+        style={[styles.surface, contentStyle]}>
         {title !== undefined && (
           <View style={styles.titleRow}>
             {titleIcon !== undefined && (
@@ -41,7 +58,7 @@ export function Card({ children, style, contentStyle, title, titleIcon }: CardPr
           </View>
         )}
         {children}
-      </View>
+      </BlurView>
     </View>
   );
 }
@@ -68,7 +85,13 @@ const styles = StyleSheet.create({
   },
   surface: {
     borderRadius: Radius.lg,
-    backgroundColor: Colors.card,
+    /*
+     * A light wash on top of the blur. Without it the blur alone samples the
+     * canvas too faithfully and the card loses its edge against the background.
+     */
+    backgroundColor: Colors.cardWash,
+    borderWidth: Size.hairline,
+    borderColor: Colors.borderLight,
     padding: Spacing.lg,
     overflow: 'hidden',
   },

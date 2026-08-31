@@ -17,6 +17,8 @@ export const StorageKeys = {
   SAVED_CITIES: 'goldenhour:saved-cities',
   ONBOARDING_COMPLETE: 'goldenhour:onboarding-complete',
   LAST_KNOWN_LOCATION: 'goldenhour:last-known-location',
+  SETTINGS: 'goldenhour:settings',
+  ACTIVE_LOCATION: 'goldenhour:active-location',
 } as const;
 
 /** Union of the concrete key strings, so callers cannot invent new ones. */

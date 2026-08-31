@@ -115,6 +115,21 @@ export function getZonedNoon(date: Date, timeZone: string): Date {
 /* Public formatting API                                                       */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Whether the device's own locale uses a 12-hour clock.
+ *
+ * The default for the app's time format: a Belgian user expects 20:30, an
+ * American 8:30 PM, and neither should have to go and change a setting first.
+ * Falls back to 12-hour only if the runtime declines to say.
+ */
+export function getDeviceUses12Hour(): boolean {
+  try {
+    return new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hour12 ?? true;
+  } catch {
+    return true;
+  }
+}
+
 export interface FormattedTime {
   /** "6:08" — rendered large. */
   time: string;
@@ -166,18 +181,26 @@ function getZoneLabel(date: Date, timeZone: string): string {
  * Splits a time into its display parts so the UI can size them independently.
  * Never pre-concatenated: the hero renders `time` at 48pt and `period`/`tz` at 13pt.
  */
-export function formatTime(date: Date | null | undefined, timeZone: string): FormattedTime {
+export function formatTime(
+  date: Date | null | undefined,
+  timeZone: string,
+  hour12: boolean = getDeviceUses12Hour(),
+): FormattedTime {
   if (!isValidDate(date)) {
     return { time: EM_DASH, period: '', tz: '' };
   }
 
+  /*
+   * `hourCycle: 'h23'` rather than `hour12: false`. The latter can yield "24:00"
+   * for midnight in some ICU builds, which is technically valid ISO and looks
+   * like a bug to everyone else.
+   */
   const parts = partsToRecord(
-    createFormatter({
-      timeZone,
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    }).formatToParts(date),
+    createFormatter(
+      hour12
+        ? { timeZone, hour: 'numeric', minute: '2-digit', hour12: true }
+        : { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' },
+    ).formatToParts(date),
   );
 
   const hour = parts.hour ?? '';
@@ -185,7 +208,9 @@ export function formatTime(date: Date | null | undefined, timeZone: string): For
 
   return {
     time: `${hour}:${minute}`,
-    period: (parts.dayPeriod ?? '').toUpperCase(),
+    // Empty in 24h mode — `EventRow` filters falsy unit runs, so the AM/PM slot
+    // collapses rather than leaving a gap.
+    period: hour12 ? (parts.dayPeriod ?? '').toUpperCase() : '',
     tz: getZoneLabel(date, timeZone),
   };
 }

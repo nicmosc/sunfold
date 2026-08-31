@@ -1,11 +1,9 @@
 import { BlurView } from 'expo-blur';
 import { SymbolView } from 'expo-symbols';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AppState,
   LayoutChangeEvent,
-  Modal,
-  Pressable,
   ScrollView,
   Share,
   StyleSheet,
@@ -13,74 +11,96 @@ import {
   View,
 } from 'react-native';
 
+import { DayPickerSheet } from '@/components/day-picker-sheet';
+import { LocationPickerSheet } from '@/components/location-picker-sheet';
+import { SettingsSheet } from '@/components/settings-sheet';
 import { Card, CardDivider } from '@/components/ui/card';
 import { EventRow, NO_EVENT_TIME } from '@/components/ui/event-row';
 import { GradientBackground } from '@/components/ui/gradient-background';
 import { PillButton } from '@/components/ui/pill-button';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { DayTimeline } from '@/components/viz/day-timeline';
+import { DaylightArc } from '@/components/viz/daylight-arc';
 import { SunSky } from '@/components/viz/sun-sky';
 import { Colors, Radius, Size, Spacing, TabBarInset, Type } from '@/constants/theme';
-import { useLocation } from '@/hooks/use-location';
-import { formatCountdown, formatRelativeDay, formatTime, getGreeting } from '@/lib/format';
-import { DEFAULT_LOCATION } from '@/lib/location';
-import { getDayEvents, getDayProgress, getDaySummary, getNextEvent, getSunPosition } from '@/lib/sun';
+import { useActiveLocation } from '@/hooks/use-active-location';
+import { useSettings } from '@/hooks/use-settings';
+import {
+  formatCountdown,
+  formatDuration,
+  formatRelativeDay,
+  formatTime,
+  getGreeting,
+} from '@/lib/format';
+import {
+  getDayEvents,
+  getDayProgress,
+  getDaylightRemaining,
+  getDaySummary,
+  getNextEvent,
+  getSunPosition,
+} from '@/lib/sun';
 import { getPhaseAccent, getSkyGradient, getSunGradient, getSunSize } from '@/lib/sun-colors';
-import type { SunEvent, SunEventKey } from '@/lib/types';
+import type { SunEventKey } from '@/lib/types';
 
 const MS_PER_MINUTE = 60_000;
-/**
- * The sun swells as it nears the horizon and shrinks at its peak, matching the
- * apparent size change of the real thing.
- */
+/** The sun swells near the horizon and shrinks at its peak, as the real one does. */
 const SUN_SIZE_HORIZON = 160;
 const SUN_SIZE_PEAK = 106;
 /** Height of the sky band above the horizon line the greeting sits on. */
 const SKY_HEIGHT = 190;
 /**
- * The scrim is a permanent part of the design, so it keeps a floor of blur even
- * with the sun high and nothing behind the text. It only *intensifies* as the
- * sun drops in behind it.
+ * The scrim is permanent, so it keeps a floor of blur and only intensifies as
+ * the sun drops in behind it. Vanishing entirely read as a rendering bug.
  */
 const SCRIM_MIN_INTENSITY = 30;
 const SCRIM_MAX_INTENSITY = 72;
-/** Altitude ratio at or above which the scrim sits at its floor. */
 const SCRIM_FADE_ABOVE = 0.38;
 
-/**
- * Days offered in the picker, relative to today. Yesterday is included because
- * "what did the light do this morning" is a real question when reviewing a
- * shoot; a week ahead covers planning one.
- */
-const DAY_OFFSETS = [-1, 0, 1, 2, 3, 4, 5, 6] as const;
+/** Twilight rows, hidden when the `showTwilight` setting is off. */
+const TWILIGHT_KEYS = new Set<SunEventKey>([
+  'firstLight',
+  'blueHourMorningStart',
+  'blueHourEveningEnd',
+  'lastLight',
+]);
 
-/** Rows shown in the summary card, in order, with the sublabel each should carry. */
-const SUMMARY_ROWS: { key: SunEventKey; sublabel: string }[] = [
-  { key: 'sunrise', sublabel: 'Today' },
-  { key: 'goldenHourMorningEnd', sublabel: 'Morning · ends' },
-  { key: 'solarNoon', sublabel: 'Sun at its highest' },
-  { key: 'goldenHourEveningStart', sublabel: 'Evening · starts' },
-  { key: 'sunset', sublabel: 'Today' },
+/** The full day, first light to last light, in order. */
+const EVENT_KEYS: SunEventKey[] = [
+  'firstLight',
+  'blueHourMorningStart',
+  'sunrise',
+  'goldenHourMorningEnd',
+  'solarNoon',
+  'goldenHourEveningStart',
+  'sunset',
+  'blueHourEveningEnd',
+  'lastLight',
 ];
 
-function findEvent(events: SunEvent[], key: SunEventKey): SunEvent | undefined {
-  return events.find((candidate) => candidate.key === key);
+interface HeroEvent {
+  label: string;
+  date: Date;
 }
 
 export default function HomeScreen() {
-  const { location } = useLocation();
+  const { location } = useActiveLocation();
+  const { settings } = useSettings();
+  const { hour12, showTwilight } = settings;
+
   const [now, setNow] = useState(() => new Date());
   const [dayOffset, setDayOffset] = useState(0);
   const [timelineWidth, setTimelineWidth] = useState(0);
+  const [arcWidth, setArcWidth] = useState(0);
   const [skyWidth, setSkyWidth] = useState(0);
   const [headerHeight, setHeaderHeight] = useState(0);
   const [scrubProgress, setScrubProgress] = useState<number | null>(null);
-  const [isDayPickerOpen, setIsDayPickerOpen] = useState(false);
+  const [openSheet, setOpenSheet] = useState<'day' | 'location' | 'settings' | null>(null);
 
   /*
-   * Ticks the hero countdown once a second, but only while the app is in the
-   * foreground — a 1s timer left running in the background drains battery and
-   * is the kind of thing App Review notices.
+   * Ticks the countdown once a second, but only in the foreground — a 1s timer
+   * left running in the background drains battery and is the kind of thing App
+   * Review notices.
    */
   useEffect(() => {
     let timer: ReturnType<typeof setInterval> | undefined;
@@ -113,13 +133,10 @@ export default function HomeScreen() {
     };
   }, []);
 
-  const loc = location ?? DEFAULT_LOCATION;
-
   /*
-   * `now` ticks every second to drive the countdown, but nothing derived from
+   * `now` ticks every second for the countdown, but nothing derived from
    * suncalc needs that resolution. Truncating to the minute gives those memos a
-   * dependency that only changes 60x less often — and, unlike passing a bare
-   * cache-busting key, it is a dependency the memo body genuinely reads.
+   * dependency that changes 60x less often — and one the body actually reads.
    */
   const minuteKey = Math.floor(now.getTime() / MS_PER_MINUTE);
   const minuteNow = useMemo(() => new Date(minuteKey * MS_PER_MINUTE), [minuteKey]);
@@ -130,42 +147,56 @@ export default function HomeScreen() {
     return target;
   }, [minuteNow, dayOffset]);
 
-  const events = useMemo(() => getDayEvents(selectedDate, loc), [selectedDate, loc]);
-  const summary = useMemo(() => getDaySummary(selectedDate, loc), [selectedDate, loc]);
-  const nextEvent = useMemo(() => getNextEvent(minuteNow, loc), [minuteNow, loc]);
+  const events = useMemo(() => getDayEvents(selectedDate, location), [selectedDate, location]);
+  const summary = useMemo(() => getDaySummary(selectedDate, location), [selectedDate, location]);
+  const daylight = useMemo(
+    () => getDaylightRemaining(selectedDate, location),
+    [selectedDate, location],
+  );
 
   /*
-   * Where the scrubber sits before anyone touches it, measured against the
-   * SELECTED day rather than today.
+   * The hero countdown follows the SELECTED day: the first event on it that has
+   * not passed. Using `getNextEvent(now)` alone described today even while the
+   * rows below described a different day.
    *
-   * Clamping does the work, and it generalises cleanly:
-   *   - during the selected day's light  -> the live position
-   *   - after its sunset (tonight)       -> pinned to sunset
-   *   - before its sunrise (a later day) -> pinned to sunrise
-   *
-   * Computing this against today's span instead — which is what
-   * `getDayProgress(now, loc)` does — leaves the handle at today's position
-   * while the rows below describe a different day.
+   * When the selected day is fully elapsed — late tonight, or a past day — it
+   * falls back to the rolling next event, which crosses into following days.
+   */
+  const rollingNext = useMemo(() => getNextEvent(minuteNow, location), [minuteNow, location]);
+
+  const hero = useMemo<HeroEvent | null>(() => {
+    const nowMs = minuteNow.getTime();
+    const upcoming = events.find(
+      (candidate) => candidate.date !== null && candidate.date.getTime() > nowMs,
+    );
+
+    if (upcoming !== undefined && upcoming.date !== null) {
+      return { label: upcoming.label, date: upcoming.date };
+    }
+
+    return rollingNext === null
+      ? null
+      : { label: rollingNext.event.label, date: rollingNext.date };
+  }, [events, minuteNow, rollingNext]);
+
+  /*
+   * Scrubber position, measured against the SELECTED day's span. Clamping then
+   * expresses the whole rule: live during that day's light, pinned to sunset
+   * after it, pinned to sunrise before it.
    */
   const liveProgress = useMemo(() => {
     const { sunrise, sunset } = summary;
-
-    // Polar day/night: no sunrise or sunset to measure against.
     if (sunrise === null || sunset === null) {
-      return getDayProgress(minuteNow, loc);
+      return getDayProgress(minuteNow, location);
     }
-
     const span = sunset.getTime() - sunrise.getTime();
-    if (span <= 0) {
-      return 0;
-    }
-
+    if (span <= 0) return 0;
     return Math.min(1, Math.max(0, (minuteNow.getTime() - sunrise.getTime()) / span));
-  }, [summary, minuteNow, loc]);
+  }, [summary, minuteNow, location]);
 
   const timelineProgress = scrubProgress ?? liveProgress;
 
-  /** The instant the scrubber currently points at, for the bubble label. */
+  /** The instant the scrubber points at, for the bubble and the sun's colour. */
   const scrubbedTime = useMemo(() => {
     const { sunrise, sunset } = summary;
     if (sunrise === null || sunset === null) return null;
@@ -173,20 +204,9 @@ export default function HomeScreen() {
     return new Date(sunrise.getTime() + timelineProgress * span);
   }, [summary, timelineProgress]);
 
-  const bubbleLabel = (() => {
-    const formatted = formatTime(scrubbedTime, loc.timeZone);
-    return formatted.time === NO_EVENT_TIME
-      ? NO_EVENT_TIME
-      : `${formatted.time} ${formatted.period}`;
-  })();
-
-  /*
-   * The disc's colour and height both track the sun's real altitude at whatever
-   * instant the scrubber points at, so dragging across the day lifts it out
-   * from behind the greeting, arcs it overhead, and sets it again.
-   */
-  const sunAltitude = getSunPosition(scrubbedTime ?? minuteNow, loc).altitude;
+  const sunAltitude = getSunPosition(scrubbedTime ?? minuteNow, location).altitude;
   const sunGradient = getSunGradient(sunAltitude);
+  const skyGradient = getSkyGradient(sunAltitude);
 
   /*
    * Normalised against the day's OWN peak, not a fixed 90 degrees — otherwise a
@@ -194,43 +214,71 @@ export default function HomeScreen() {
    * rise at all.
    */
   const peakAltitude =
-    summary.solarNoon === null ? 0 : getSunPosition(summary.solarNoon, loc).altitude;
+    summary.solarNoon === null ? 0 : getSunPosition(summary.solarNoon, location).altitude;
   const altitudeRatio = peakAltitude > 0 ? sunAltitude / peakAltitude : 0;
 
-  /*
-   * Blur ramps from a permanent floor up to full as the sun sinks in behind the
-   * text. It deliberately never reaches zero: the frosted panel is part of the
-   * design, and having it disappear around midday read as a rendering bug
-   * rather than an effect.
-   */
   const scrimRamp = Math.min(1, Math.max(0, (SCRIM_FADE_ABOVE - altitudeRatio) / SCRIM_FADE_ABOVE));
   const scrimIntensity = Math.round(
     SCRIM_MIN_INTENSITY + scrimRamp * (SCRIM_MAX_INTENSITY - SCRIM_MIN_INTENSITY),
   );
 
   const sunSize = getSunSize(altitudeRatio, SUN_SIZE_HORIZON, SUN_SIZE_PEAK);
-  const skyGradient = getSkyGradient(sunAltitude);
 
-  const countdown =
-    nextEvent === null ? null : formatCountdown(nextEvent.date.getTime() - now.getTime());
+  const bubbleLabel = (() => {
+    const formatted = formatTime(scrubbedTime, location.timeZone, hour12);
+    return formatted.time === NO_EVENT_TIME
+      ? NO_EVENT_TIME
+      : `${formatted.time} ${formatted.period}`.trim();
+  })();
 
-  const goldenHourMorning = findEvent(events, 'goldenHourMorningStart');
-  const goldenHourTime = formatTime(goldenHourMorning?.date ?? null, loc.timeZone);
-  const sunriseTime = formatTime(summary.sunrise, loc.timeZone);
-  const sunsetTime = formatTime(summary.sunset, loc.timeZone);
+  const countdown = hero === null ? null : formatCountdown(hero.date.getTime() - now.getTime());
+  const remaining = formatDuration(daylight.remainingMs);
+  const sunriseTime = formatTime(summary.sunrise, location.timeZone, hour12);
+  const sunsetTime = formatTime(summary.sunset, location.timeZone, hour12);
+
+  const goldenHourStart = events.find((event) => event.key === 'goldenHourEveningStart');
+  const goldenHourTime = formatTime(goldenHourStart?.date ?? null, location.timeZone, hour12);
+
+  const visibleKeys = showTwilight
+    ? EVENT_KEYS
+    : EVENT_KEYS.filter((key) => !TWILIGHT_KEYS.has(key));
+
+  const { moon } = summary;
+
+  const getDayTimes = useCallback(
+    (date: Date) => {
+      const day = getDaySummary(date, location);
+      return { sunrise: day.sunrise, sunset: day.sunset };
+    },
+    [location],
+  );
 
   async function handleShare() {
+    const goldenMorning = events.find((event) => event.key === 'goldenHourMorningEnd');
+    const morning = formatTime(goldenMorning?.date ?? null, location.timeZone, hour12);
+
     const parts = [
-      `${loc.name} — ${formatRelativeDay(selectedDate, loc.timeZone)}`,
-      `Sunrise ${sunriseTime.time} ${sunriseTime.period}`,
-      `Sunset ${sunsetTime.time} ${sunsetTime.period}`,
-      `Golden hour ${goldenHourTime.time} ${goldenHourTime.period}`,
+      `${location.name} — ${formatRelativeDay(selectedDate, location.timeZone, minuteNow)}`,
+      `Sunrise ${sunriseTime.time} ${sunriseTime.period}`.trim(),
+      `Golden hour ${sunriseTime.time}–${morning.time} and ${goldenHourTime.time}–${sunsetTime.time}`,
+      `Sunset ${sunsetTime.time} ${sunsetTime.period}`.trim(),
+      `Times in ${sunriseTime.tz}`,
     ];
     await Share.share({ message: parts.join('\n') });
   }
 
+  function handleSelectDay(offset: number) {
+    setDayOffset(offset);
+    setScrubProgress(null);
+    setOpenSheet(null);
+  }
+
   function handleTimelineLayout(event: LayoutChangeEvent) {
     setTimelineWidth(event.nativeEvent.layout.width);
+  }
+
+  function handleArcLayout(event: LayoutChangeEvent) {
+    setArcWidth(event.nativeEvent.layout.width);
   }
 
   function handleSkyLayout(event: LayoutChangeEvent) {
@@ -239,35 +287,10 @@ export default function HomeScreen() {
 
   /*
    * The pinned sky layer sits directly below the header, so it has to know how
-   * tall the header actually is — that varies with the safe-area inset, which
-   * differs between devices and cannot be hardcoded.
+   * tall the header actually is — that varies with the safe-area inset.
    */
   function handleHeaderLayout(event: LayoutChangeEvent) {
     setHeaderHeight(event.nativeEvent.layout.height);
-  }
-
-  /*
-   * Each option carries that day's own sunrise and sunset, so the picker
-   * doubles as a week-at-a-glance — the point of looking a few days ahead is
-   * usually to see how the light is shifting, not just to change a label.
-   */
-  const dayOptions = DAY_OFFSETS.map((offset) => {
-    const date = new Date(minuteNow);
-    date.setDate(date.getDate() + offset);
-    const daySummary = getDaySummary(date, loc);
-
-    return {
-      offset,
-      label: formatRelativeDay(date, loc.timeZone, minuteNow),
-      sunrise: formatTime(daySummary.sunrise, loc.timeZone),
-      sunset: formatTime(daySummary.sunset, loc.timeZone),
-    };
-  });
-
-  function handleSelectDay(offset: number) {
-    setDayOffset(offset);
-    setScrubProgress(null);
-    setIsDayPickerOpen(false);
   }
 
   return (
@@ -297,50 +320,59 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}>
         <View onLayout={handleHeaderLayout}>
-        <ScreenHeader
-          left={
-            <PillButton
-              label={formatRelativeDay(selectedDate, loc.timeZone)}
-              trailingIcon={
-                <SymbolView name="chevron.down" size={12} tintColor={Colors.textSecondary} />
-              }
-              onPress={() => setIsDayPickerOpen(true)}
-            />
-          }
-          right={
-            <PillButton
-              icon={
-                <SymbolView name="square.and.arrow.up" size={18} tintColor={Colors.text} />
-              }
-              accessibilityLabel="Share today's sun times"
-              onPress={() => void handleShare()}
-            />
-          }
-        />
+          <ScreenHeader
+            left={
+              <PillButton
+                label={formatRelativeDay(selectedDate, location.timeZone, minuteNow)}
+                trailingIcon={
+                  <SymbolView name="chevron.down" size={12} tintColor={Colors.textSecondary} />
+                }
+                onPress={() => setOpenSheet('day')}
+              />
+            }
+            right={
+              <View style={styles.headerActions}>
+                <PillButton
+                  icon={<SymbolView name="location.fill" size={14} tintColor={Colors.accent} />}
+                  label={location.name}
+                  onPress={() => setOpenSheet('location')}
+                />
+                <PillButton
+                  icon={
+                    <SymbolView name="square.and.arrow.up" size={17} tintColor={Colors.text} />
+                  }
+                  accessibilityLabel="Share these times"
+                  onPress={() => void handleShare()}
+                />
+                <PillButton
+                  icon={<SymbolView name="gearshape.fill" size={17} tintColor={Colors.text} />}
+                  accessibilityLabel="Settings"
+                  onPress={() => setOpenSheet('settings')}
+                />
+              </View>
+            }
+          />
         </View>
 
-        {/*
-          Reserves the space the pinned sun occupies. Scrolling slides the scrim
-          up over it, which is what makes the sun disappear behind the content.
-        */}
         <View style={styles.skySpacer} />
 
         <BlurView intensity={scrimIntensity} tint="light" style={styles.scrim}>
           <Text style={styles.greeting}>
-            {getGreeting(now, loc.timeZone)}, <Text style={styles.greetingName}>{loc.name}</Text>
+            {getGreeting(now, location.timeZone)},{' '}
+            <Text style={styles.greetingName}>{location.name}</Text>
           </Text>
 
-          {nextEvent !== null && countdown !== null && (
+          {hero !== null && countdown !== null && (
             <Text style={styles.hero}>
-              {nextEvent.event.label} in <Text style={styles.heroValue}>{countdown}</Text>
+              {hero.label} in <Text style={styles.heroValue}>{countdown}</Text>
             </Text>
           )}
 
           <Text style={styles.subline}>
             <Text style={styles.sublineStrong}>Golden hour</Text>
             {goldenHourTime.time === NO_EVENT_TIME
-              ? ' does not occur today'
-              : ` starts at ${goldenHourTime.time} ${goldenHourTime.period}`}
+              ? ' does not occur on this day'
+              : ` starts at ${goldenHourTime.time} ${goldenHourTime.period}`.trimEnd()}
           </Text>
         </BlurView>
 
@@ -376,16 +408,16 @@ export default function HomeScreen() {
         </Card>
 
         <Card style={styles.card} contentStyle={styles.listCard}>
-          {SUMMARY_ROWS.map(({ key, sublabel }, index) => {
-            const event = findEvent(events, key);
-            const formatted = formatTime(event?.date ?? null, loc.timeZone);
+          {visibleKeys.map((key, index) => {
+            const event = events.find((candidate) => candidate.key === key);
+            const formatted = formatTime(event?.date ?? null, location.timeZone, hour12);
 
             return (
               <View key={key}>
                 {index > 0 && <CardDivider />}
                 <EventRow
                   label={event?.label ?? key}
-                  sublabel={sublabel}
+                  sublabel={event?.sublabel}
                   time={formatted.time}
                   period={formatted.period}
                   tz={formatted.tz}
@@ -394,59 +426,65 @@ export default function HomeScreen() {
               </View>
             );
           })}
+
+          <CardDivider />
+          {/*
+            The reference mockup puts a clock time on this row, which is wrong —
+            a moon phase is a state, not an instant. Showing illumination.
+          */}
+          <EventRow
+            label="Moon phase"
+            sublabel={moon.phaseName}
+            time={`${Math.round(moon.illumination * 100)}`}
+            period="%"
+            tz="lit"
+            accentColor={getPhaseAccent('nadir')}
+          />
+        </Card>
+
+        <Card title="Daylight Remaining" style={styles.card}>
+          <View onLayout={handleArcLayout} style={styles.arcSlot}>
+            {arcWidth > 0 && (
+              <DaylightArc
+                progress={timelineProgress}
+                width={arcWidth}
+                sunriseLabel={sunriseTime.time}
+                sunsetLabel={sunsetTime.time}
+              />
+            )}
+          </View>
+
+          <View style={styles.remaining}>
+            <Text style={styles.remainingValue}>{remaining.hours}</Text>
+            <Text style={styles.remainingUnit}>hr</Text>
+            <Text style={styles.remainingValue}>{remaining.minutes}</Text>
+            <Text style={styles.remainingUnit}>min</Text>
+          </View>
+          <Text style={styles.remainingCaption}>
+            {daylight.isPolarNight
+              ? 'Polar night — the sun stays below the horizon'
+              : daylight.isPolarDay
+                ? 'Polar day — the sun does not set'
+                : 'of daylight left'}
+          </Text>
         </Card>
       </ScrollView>
 
-      <Modal
-        visible={isDayPickerOpen}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setIsDayPickerOpen(false)}>
-        <GradientBackground edges={['top', 'bottom']}>
-          <ScreenHeader
-            title="Choose a day"
-            right={
-              <PillButton
-                icon={<SymbolView name="xmark" size={16} tintColor={Colors.text} />}
-                accessibilityLabel="Close"
-                onPress={() => setIsDayPickerOpen(false)}
-              />
-            }
-          />
-
-          <ScrollView contentContainerStyle={styles.dayList} showsVerticalScrollIndicator={false}>
-            {dayOptions.map((option) => {
-              const isSelected = option.offset === dayOffset;
-
-              return (
-                <Pressable
-                  key={option.offset}
-                  onPress={() => handleSelectDay(option.offset)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: isSelected }}
-                  accessibilityLabel={`${option.label}, sunrise ${option.sunrise.time} ${option.sunrise.period}, sunset ${option.sunset.time} ${option.sunset.period}`}
-                  style={({ pressed }) => [
-                    styles.dayRow,
-                    isSelected && styles.dayRowSelected,
-                    pressed && styles.dayRowPressed,
-                  ]}>
-                  <View style={styles.dayLabels}>
-                    <Text style={styles.dayLabel}>{option.label}</Text>
-                    <Text style={styles.dayTimes}>
-                      {option.sunrise.time} {option.sunrise.period} – {option.sunset.time}{' '}
-                      {option.sunset.period}
-                    </Text>
-                  </View>
-
-                  {isSelected && (
-                    <SymbolView name="checkmark" size={16} tintColor={Colors.accent} />
-                  )}
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </GradientBackground>
-      </Modal>
+      <DayPickerSheet
+        visible={openSheet === 'day'}
+        onClose={() => setOpenSheet(null)}
+        dayOffset={dayOffset}
+        onSelect={handleSelectDay}
+        location={location}
+        hour12={hour12}
+        now={minuteNow}
+        getDayTimes={getDayTimes}
+      />
+      <LocationPickerSheet
+        visible={openSheet === 'location'}
+        onClose={() => setOpenSheet(null)}
+      />
+      <SettingsSheet visible={openSheet === 'settings'} onClose={() => setOpenSheet(null)} />
     </GradientBackground>
   );
 }
@@ -455,6 +493,11 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: Spacing.xl,
     paddingBottom: TabBarInset,
+    gap: Spacing.sm,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: Spacing.sm,
   },
   /** Pinned sun layer, inset to match the scroll content's horizontal padding. */
@@ -500,7 +543,6 @@ const styles = StyleSheet.create({
   subline: {
     ...Type.body,
     color: Colors.textSecondary,
-    marginBottom: Spacing.sm,
   },
   sublineStrong: {
     color: Colors.text,
@@ -514,6 +556,9 @@ const styles = StyleSheet.create({
   },
   timelineSlot: {
     marginBottom: Spacing.base,
+  },
+  arcSlot: {
+    marginBottom: Spacing.sm,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -533,37 +578,25 @@ const styles = StyleSheet.create({
     ...Type.caption,
     color: Colors.textSecondary,
   },
-  dayList: {
-    paddingHorizontal: Spacing.xl,
-    paddingBottom: Spacing.xxl,
-    gap: Spacing.sm,
-  },
-  dayRow: {
+  remaining: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.base,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.card,
-    borderWidth: Size.hairline,
-    borderColor: Colors.borderLight,
-  },
-  dayRowSelected: {
-    backgroundColor: Colors.accentMuted,
-  },
-  dayRowPressed: {
-    opacity: 0.7,
-  },
-  dayLabels: {
+    alignItems: 'baseline',
+    justifyContent: 'center',
     gap: Spacing.xs,
   },
-  dayLabel: {
-    ...Type.label,
+  remainingValue: {
+    ...Type.display,
     color: Colors.text,
   },
-  dayTimes: {
+  remainingUnit: {
+    ...Type.unit,
+    color: Colors.textSecondary,
+    marginRight: Spacing.sm,
+  },
+  remainingCaption: {
     ...Type.caption,
     color: Colors.textSecondary,
+    textAlign: 'center',
+    marginTop: Spacing.xs,
   },
 });

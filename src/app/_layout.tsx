@@ -5,7 +5,9 @@ import { useCallback } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { ActiveLocationProvider } from '@/hooks/use-active-location';
 import { OnboardingProvider, useOnboarding } from '@/hooks/use-onboarding';
+import { SettingsProvider } from '@/hooks/use-settings';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -46,12 +48,21 @@ function RootNavigator() {
   );
 }
 
+/**
+ * Provider order matters: `ActiveLocationProvider` calls `useLocation`
+ * internally, and every screen reads the active location and the settings, so
+ * both must sit above the navigator.
+ */
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <OnboardingProvider>
-        <RootNavigator />
-      </OnboardingProvider>
+      <SettingsProvider>
+        <ActiveLocationProvider>
+          <OnboardingProvider>
+            <RootNavigator />
+          </OnboardingProvider>
+        </ActiveLocationProvider>
+      </SettingsProvider>
     </SafeAreaProvider>
   );
 }

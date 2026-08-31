@@ -294,6 +294,7 @@ export default function HomeScreen() {
           width={skyWidth}
           height={SKY_HEIGHT}
           size={sunSize}
+          baseSize={SUN_SIZE_HORIZON}
           altitude={sunAltitude}
           peakAltitude={peakAltitude}
           progress={timelineProgress}

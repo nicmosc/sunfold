@@ -60,9 +60,13 @@ HAZE_CY, HAZE_R = 0.50, 0.225
 # The dome is glass, not paint: it is most transparent directly over the sun so
 # the sphere genuinely shows through, and closes up toward its edges. The visible
 # object behind is what separates glass from a frosted panel.
-DOME_ALPHA_OVER_SUN = 176
+DOME_ALPHA_OVER_SUN = 132
 DOME_ALPHA_EDGE = 250
-DOME_SEETHROUGH_R = 0.30
+DOME_SEETHROUGH_R = 0.34
+
+# Frosted glass DIFFUSES what is behind it. Veiling a sharp sphere reads as
+# tinted acetate; blurring the backdrop inside the dome is what makes it glass.
+DOME_BACKDROP_BLUR = 0.019
 
 DOME_BLUR = 0.0015
 RIM_THICKNESS = 0.005
@@ -175,6 +179,13 @@ def build(size, opaque_field):
     base.paste(sphere, (int(s * SUN_CX - d / 2), int(s * SUN_CY - d / 2)), sphere)
 
     shape = dome_mask(s).filter(ImageFilter.GaussianBlur(s * DOME_BLUR))
+
+    # Frosted backdrop: inside the dome, swap in a blurred copy of everything
+    # behind it. This is the actual glass effect — the veil and haze that follow
+    # only tint and soften it.
+    base = Image.composite(
+        base.filter(ImageFilter.GaussianBlur(s * DOME_BACKDROP_BLUR)), base, shape
+    )
 
     # Dome alpha is a radial ramp centred on the SUN, not a flat value: thinnest
     # where the sphere is behind it, closing up toward the dome's edges.

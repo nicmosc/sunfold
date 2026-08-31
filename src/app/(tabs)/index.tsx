@@ -336,8 +336,15 @@ export default function HomeScreen() {
         <View style={styles.skySpacer} />
 
         <BlurView intensity={scrimIntensity} tint="light" style={styles.scrim}>
+          {/*
+            A greeting only makes sense for today. On any other day it says
+            "Good afternoon" over data from a day that is not this afternoon, so
+            the line names the day instead.
+          */}
           <Text style={styles.greeting}>
-            {getGreeting(now, location.timeZone)},{' '}
+            {dayOffset === 0
+              ? `${getGreeting(now, location.timeZone)}, `
+              : `${formatRelativeDay(selectedDate, location.timeZone, minuteNow)} in `}
             <Text style={styles.greetingName}>{location.name}</Text>
           </Text>
 
@@ -356,7 +363,12 @@ export default function HomeScreen() {
         </BlurView>
 
         <Card
-          title="Sun Today"
+          /* Same reason as the greeting: "Today" is a lie on any other day. */
+          title={
+            dayOffset === 0
+              ? 'Sun Today'
+              : `Sun · ${formatRelativeDay(selectedDate, location.timeZone, minuteNow)}`
+          }
           titleIcon={<SymbolView name="sun.max.fill" size={16} tintColor={Colors.accent} />}
           style={styles.card}>
           <View onLayout={handleTimelineLayout} style={styles.timelineSlot}>

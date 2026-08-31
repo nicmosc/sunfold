@@ -1,6 +1,13 @@
 import { useId } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Svg, { Circle, Defs, Ellipse, RadialGradient, Stop } from 'react-native-svg';
+import Svg, {
+  Circle,
+  Defs,
+  Ellipse,
+  LinearGradient,
+  RadialGradient,
+  Stop,
+} from 'react-native-svg';
 
 import { Colors, SunGradient } from '@/constants/theme';
 
@@ -50,6 +57,7 @@ export function SunDisc({ size, showHorizon = true, gradient = SunGradient }: Su
   const sunId = `sun-disc-fill-${uid}`;
   const sheenId = `sun-disc-sheen-${uid}`;
   const rimId = `sun-disc-rim-${uid}`;
+  const topLightId = `sun-disc-toplight-${uid}`;
   const glowId = `sun-disc-glow-${uid}`;
   const horizonId = `sun-disc-horizon-${uid}`;
 
@@ -88,6 +96,17 @@ export function SunDisc({ size, showHorizon = true, gradient = SunGradient }: Su
             <Stop offset="0" stopColor={gradient[1]} stopOpacity="0.55" />
             <Stop offset="1" stopColor={gradient[1]} stopOpacity="0" />
           </RadialGradient>
+          {/*
+            A light source directly above. The radial sheen alone gives a
+            highlight but no sense of direction — this vertical wash brightens
+            the whole upper cap and falls away by the equator, which is what
+            makes it read as lit from above rather than merely glossy.
+          */}
+          <LinearGradient id={topLightId} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={Colors.white} stopOpacity="0.46" />
+            <Stop offset="0.28" stopColor={Colors.white} stopOpacity="0.16" />
+            <Stop offset="0.55" stopColor={Colors.white} stopOpacity="0" />
+          </LinearGradient>
           {/* The bloom picks up the disc's own top colour so it warms with it. */}
           <RadialGradient id={glowId} cx="50%" cy="50%" r="50%">
             <Stop offset="0" stopColor={gradient[0]} stopOpacity="0.45" />
@@ -111,6 +130,7 @@ export function SunDisc({ size, showHorizon = true, gradient = SunGradient }: Su
         {/* Body, then bounce light, then sheen — painted back to front. */}
         <Circle cx={SUN_CENTER} cy={SUN_CENTER} r={SUN_RADIUS} fill={`url(#${sunId})`} />
         <Circle cx={SUN_CENTER} cy={SUN_CENTER} r={SUN_RADIUS} fill={`url(#${rimId})`} />
+        <Circle cx={SUN_CENTER} cy={SUN_CENTER} r={SUN_RADIUS} fill={`url(#${topLightId})`} />
         <Circle cx={SUN_CENTER} cy={SUN_CENTER} r={SUN_RADIUS} fill={`url(#${sheenId})`} />
 
         {/*

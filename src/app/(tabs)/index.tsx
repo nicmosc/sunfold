@@ -23,6 +23,7 @@ import { DaylightArc } from '@/components/viz/daylight-arc';
 import { SunSky } from '@/components/viz/sun-sky';
 import { Colors, Radius, Size, Spacing, TabBarInset, Type } from '@/constants/theme';
 import { useActiveLocation } from '@/hooks/use-active-location';
+import { useEasedValue } from '@/hooks/use-eased-value';
 import { useSettings } from '@/hooks/use-settings';
 import {
   formatCountdown,
@@ -204,8 +205,19 @@ export default function HomeScreen() {
   }, [summary, timelineProgress]);
 
   const sunAltitude = getSunPosition(scrubbedTime ?? minuteNow, location).altitude;
-  const sunGradient = getSunGradient(sunAltitude);
-  const skyGradient = getSkyGradient(sunAltitude);
+
+  /*
+   * Colours ease off a tweened altitude; POSITION and SIZE ease off the raw one,
+   * because SunSky already eases those on the UI thread. Feeding both from the
+   * tweened value would apply the easing twice and drag the motion.
+   *
+   * Easing this single input is what animates the sun's gradient and the sky's
+   * together — they are both derived from altitude, so neither needs its own
+   * animated props.
+   */
+  const easedAltitude = useEasedValue(sunAltitude);
+  const sunGradient = getSunGradient(easedAltitude);
+  const skyGradient = getSkyGradient(easedAltitude);
 
   /*
    * Normalised against the day's OWN peak, not a fixed 90 degrees — otherwise a
@@ -215,8 +227,10 @@ export default function HomeScreen() {
   const peakAltitude =
     summary.solarNoon === null ? 0 : getSunPosition(summary.solarNoon, location).altitude;
   const altitudeRatio = peakAltitude > 0 ? sunAltitude / peakAltitude : 0;
+  /* The scrim is a plain prop, so it needs the tweened value to fade smoothly. */
+  const easedRatio = peakAltitude > 0 ? easedAltitude / peakAltitude : 0;
 
-  const scrimRamp = Math.min(1, Math.max(0, (SCRIM_FADE_ABOVE - altitudeRatio) / SCRIM_FADE_ABOVE));
+  const scrimRamp = Math.min(1, Math.max(0, (SCRIM_FADE_ABOVE - easedRatio) / SCRIM_FADE_ABOVE));
   const scrimIntensity = Math.round(
     SCRIM_MIN_INTENSITY + scrimRamp * (SCRIM_MAX_INTENSITY - SCRIM_MIN_INTENSITY),
   );

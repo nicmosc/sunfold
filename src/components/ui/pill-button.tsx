@@ -105,10 +105,17 @@ const styles = StyleSheet.create({
     minHeight: Size.pillHeight,
     paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.sm,
+    /*
+     * Labelled pills must be able to shrink so a long city name truncates
+     * inside the pill instead of forcing the pill wider than its slot. Icon-only
+     * pills deliberately do not — they are already at the minimum tap target.
+     */
+    flexShrink: 1,
   },
   iconOnly: {
     width: Size.iconButton,
     height: Size.iconButton,
+    flexShrink: 0,
   },
   pressed: {
     opacity: 0.7,
@@ -119,6 +126,8 @@ const styles = StyleSheet.create({
   label: {
     ...Type.label,
     color: Colors.text,
+    /* Lets the text itself give way, so truncation happens rather than overflow. */
+    flexShrink: 1,
   },
   leadingIcon: {
     marginRight: Spacing.sm,

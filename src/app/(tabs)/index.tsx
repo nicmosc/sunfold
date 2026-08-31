@@ -5,7 +5,6 @@ import {
   AppState,
   LayoutChangeEvent,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   View,
@@ -253,19 +252,6 @@ export default function HomeScreen() {
     [location],
   );
 
-  async function handleShare() {
-    const goldenMorning = events.find((event) => event.key === 'goldenHourMorningEnd');
-    const morning = formatTime(goldenMorning?.date ?? null, location.timeZone, hour12);
-
-    const parts = [
-      `${location.name} — ${formatRelativeDay(selectedDate, location.timeZone, minuteNow)}`,
-      `Sunrise ${sunriseTime.time} ${sunriseTime.period}`.trim(),
-      `Golden hour ${sunriseTime.time}–${morning.time} and ${goldenHourTime.time}–${sunsetTime.time}`,
-      `Sunset ${sunsetTime.time} ${sunsetTime.period}`.trim(),
-      `Times in ${sunriseTime.tz}`,
-    ];
-    await Share.share({ message: parts.join('\n') });
-  }
 
   function handleSelectDay(offset: number) {
     setDayOffset(offset);
@@ -336,13 +322,6 @@ export default function HomeScreen() {
                   icon={<SymbolView name="location.fill" size={14} tintColor={Colors.accent} />}
                   label={location.name}
                   onPress={() => setOpenSheet('location')}
-                />
-                <PillButton
-                  icon={
-                    <SymbolView name="square.and.arrow.up" size={17} tintColor={Colors.text} />
-                  }
-                  accessibilityLabel="Share these times"
-                  onPress={() => void handleShare()}
                 />
                 <PillButton
                   icon={<SymbolView name="gearshape.fill" size={17} tintColor={Colors.text} />}

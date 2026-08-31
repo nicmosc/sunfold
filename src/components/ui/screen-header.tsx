@@ -52,6 +52,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    /*
+     * Without a gap, `space-between` lets the two slots shrink until they touch
+     * — a long day label and a long city name collide into one blob rather than
+     * truncating. The gap is the floor that cannot be shrunk away.
+     */
+    gap: Spacing.sm,
   },
   slot: {
     flexDirection: 'row',

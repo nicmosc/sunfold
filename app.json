@@ -8,7 +8,6 @@
     "scheme": "goldenhour",
     "userInterfaceStyle": "light",
     "ios": {
-      "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.nicolaos.goldenhour",
       "supportsTablet": false,
       "infoPlist": {

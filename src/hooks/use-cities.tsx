@@ -7,7 +7,8 @@
  * would race and the second would persist the first's list.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 
 import { getLocationKey, isLocation } from '@/lib/location';
 import { getItem, setItem, StorageKeys } from '@/lib/storage';
@@ -39,7 +40,13 @@ function dedupe(cities: Location[]): Location[] {
   });
 }
 
-export function useCities(): UseCitiesResult {
+/**
+ * The underlying implementation. Private: consumers go through the context so
+ * every screen observes ONE list. Called directly from two places, the Cities
+ * tab and the location picker would each hold their own state, and a city added
+ * in one would be invisible to the other until a reload.
+ */
+function useCitiesState(): UseCitiesResult {
   const [cities, setCities] = useState<Location[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -136,4 +143,19 @@ export function useCities(): UseCitiesResult {
   );
 
   return { cities, addCity, removeCity, reorderCities, isLoading };
+}
+
+const CitiesContext = createContext<UseCitiesResult | null>(null);
+
+export function CitiesProvider({ children }: { children: ReactNode }) {
+  const value = useCitiesState();
+  return <CitiesContext.Provider value={value}>{children}</CitiesContext.Provider>;
+}
+
+export function useCities(): UseCitiesResult {
+  const context = useContext(CitiesContext);
+  if (!context) {
+    throw new Error('useCities must be used within a CitiesProvider');
+  }
+  return context;
 }

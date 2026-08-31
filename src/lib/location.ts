@@ -247,3 +247,72 @@ export async function getCurrentLocation(): Promise<Location | null> {
     timeZone: place.timeZone ?? getDeviceTimeZone(),
   };
 }
+
+/**
+ * Most results the platform geocoder is asked to resolve. Its own docs warn
+ * that geocoding is expensive and that too many concurrent requests error out,
+ * so this stays small and the caller debounces.
+ */
+const SEARCH_RESULT_LIMIT = 5;
+
+/**
+ * Searches for a place by name using the platform geocoder.
+ *
+ * REQUIRES NETWORK — the only part of this app that does. Every time the app
+ * displays is computed on device; this is just the lookup that turns a typed
+ * name into coordinates. A failure returns an empty list rather than throwing,
+ * so the preset catalogue stays usable on a plane.
+ *
+ * Two round trips per result on purpose: `geocodeAsync` yields coordinates
+ * only, and the IANA timezone comes from `reverseGeocodeAsync`. A result whose
+ * timezone cannot be resolved is DISCARDED rather than guessed — a city stored
+ * with the wrong zone renders perfectly plausible times that are hours out,
+ * which is worse than not offering the city at all.
+ */
+export async function searchCities(query: string): Promise<Location[]> {
+  const trimmed = query.trim();
+  if (trimmed.length < 2) {
+    return [];
+  }
+
+  try {
+    const matches = await ExpoLocation.geocodeAsync(trimmed);
+
+    const resolved = await Promise.all(
+      matches.slice(0, SEARCH_RESULT_LIMIT).map(async ({ latitude, longitude }) => {
+        try {
+          const [address] = await ExpoLocation.reverseGeocodeAsync({ latitude, longitude });
+          if (address === undefined || !isValidTimeZone(address.timezone)) {
+            return null;
+          }
+
+          const name =
+            address.city ?? address.subregion ?? address.region ?? address.name ?? address.country;
+          if (name === null) {
+            return null;
+          }
+
+          const candidate: Location = { latitude, longitude, timeZone: address.timezone, name };
+          return isLocation(candidate) ? candidate : null;
+        } catch {
+          return null;
+        }
+      }),
+    );
+
+    const seen = new Set<string>();
+    return resolved.filter((city): city is Location => {
+      if (city === null) {
+        return false;
+      }
+      const key = getLocationKey(city);
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+  } catch {
+    return [];
+  }
+}

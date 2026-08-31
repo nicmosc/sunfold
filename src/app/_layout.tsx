@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ActiveLocationProvider } from '@/hooks/use-active-location';
+import { CitiesProvider } from '@/hooks/use-cities';
 import { OnboardingProvider, useOnboarding } from '@/hooks/use-onboarding';
 import { SettingsProvider } from '@/hooks/use-settings';
 
@@ -57,11 +58,13 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <SettingsProvider>
-        <ActiveLocationProvider>
-          <OnboardingProvider>
-            <RootNavigator />
-          </OnboardingProvider>
-        </ActiveLocationProvider>
+        <CitiesProvider>
+          <ActiveLocationProvider>
+            <OnboardingProvider>
+              <RootNavigator />
+            </OnboardingProvider>
+          </ActiveLocationProvider>
+        </CitiesProvider>
       </SettingsProvider>
     </SafeAreaProvider>
   );

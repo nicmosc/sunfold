@@ -13,13 +13,13 @@ import { Card, CardDivider } from '@/components/ui/card';
 import { GradientBackground } from '@/components/ui/gradient-background';
 import { PillButton } from '@/components/ui/pill-button';
 import { ScreenHeader } from '@/components/ui/screen-header';
-import { OptionRow, Sheet } from '@/components/ui/sheet';
+import { CitySearchSheet } from '@/components/city-search-sheet';
 import { Colors, Size, Spacing, TabBarInset, Type } from '@/constants/theme';
 import { useActiveLocation } from '@/hooks/use-active-location';
 import { useCities } from '@/hooks/use-cities';
 import { useSettings } from '@/hooks/use-settings';
 import { formatCountdown, formatTime } from '@/lib/format';
-import { getLocationKey, PRESET_CITIES } from '@/lib/location';
+import { getLocationKey } from '@/lib/location';
 import { getDaySummary, getNextEvent, getSunPosition } from '@/lib/sun';
 import { getPhaseAccent, getSkyGradient } from '@/lib/sun-colors';
 import type { Location } from '@/lib/types';
@@ -140,7 +140,6 @@ export default function CitiesScreen() {
 
   const activeKey = getLocationKey(location);
   const savedKeys = new Set(cities.map(getLocationKey));
-  const available = PRESET_CITIES.filter((city) => !savedKeys.has(getLocationKey(city)));
 
   /*
    * Sorted by how high the sun is right now, so the cities with usable light
@@ -207,24 +206,15 @@ export default function CitiesScreen() {
         }
       />
 
-      <Sheet
+      {/* Keyed so opening the sheet remounts it with an empty field, rather
+          than resetting state from an effect. */}
+      <CitySearchSheet
+        key={isPickerOpen ? 'open' : 'closed'}
         visible={isPickerOpen}
         onClose={() => setIsPickerOpen(false)}
-        title="Add a city"
-        subtitle="Works offline — no lookup required">
-        {available.length === 0 && (
-          <Text style={styles.emptyBody}>Every available city has been added.</Text>
-        )}
-        {available.map((city) => (
-          <OptionRow
-            key={getLocationKey(city)}
-            label={city.name}
-            detail={city.timeZone}
-            onPress={() => handleAdd(city)}
-            icon={<SymbolView name="plus.circle" size={16} tintColor={Colors.accent} />}
-          />
-        ))}
-      </Sheet>
+        savedKeys={savedKeys}
+        onAdd={handleAdd}
+      />
     </GradientBackground>
   );
 }

@@ -60,13 +60,13 @@ HAZE_CY, HAZE_R = 0.66, 0.255
 # The dome is glass, not paint: it is most transparent directly over the sun so
 # the sphere genuinely shows through, and closes up toward its edges. The visible
 # object behind is what separates glass from a frosted panel.
-DOME_ALPHA_OVER_SUN = 132
-DOME_ALPHA_EDGE = 250
+DOME_ALPHA_OVER_SUN = 98
+DOME_ALPHA_EDGE = 232
 DOME_SEETHROUGH_R = 0.34
 
 # Frosted glass DIFFUSES what is behind it. Veiling a sharp sphere reads as
 # tinted acetate; blurring the backdrop inside the dome is what makes it glass.
-DOME_BACKDROP_BLUR = 0.019
+DOME_BACKDROP_BLUR = 0.032
 
 DOME_BLUR = 0.0015
 RIM_THICKNESS = 0.005

@@ -1,3 +1,4 @@
+import { BlurView } from 'expo-blur';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -19,9 +20,8 @@ import { PillButton } from '@/components/ui/pill-button';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { DayTimeline } from '@/components/viz/day-timeline';
 import { DaylightArc } from '@/components/viz/daylight-arc';
-import { HorizonDome } from '@/components/viz/horizon-dome';
 import { SunSky } from '@/components/viz/sun-sky';
-import { Colors, Spacing, TabBarInset, Type } from '@/constants/theme';
+import { Colors, Radius, Size, Spacing, TabBarInset, Type } from '@/constants/theme';
 import { useActiveLocation } from '@/hooks/use-active-location';
 import { useSettings } from '@/hooks/use-settings';
 import {
@@ -48,6 +48,13 @@ const SUN_SIZE_HORIZON = 160;
 const SUN_SIZE_PEAK = 106;
 /** Height of the sky band above the horizon line the greeting sits on. */
 const SKY_HEIGHT = 190;
+/**
+ * The scrim is permanent, so it keeps a floor of blur and only intensifies as
+ * the sun drops in behind it. Vanishing entirely read as a rendering bug.
+ */
+const SCRIM_MIN_INTENSITY = 30;
+const SCRIM_MAX_INTENSITY = 72;
+const SCRIM_FADE_ABOVE = 0.38;
 
 /** Twilight rows, hidden when the `showTwilight` setting is off. */
 const TWILIGHT_KEYS = new Set<SunEventKey>([
@@ -86,8 +93,6 @@ export default function HomeScreen() {
   const [arcWidth, setArcWidth] = useState(0);
   const [skyWidth, setSkyWidth] = useState(0);
   const [headerHeight, setHeaderHeight] = useState(0);
-  const [scrimWidth, setScrimWidth] = useState(0);
-  const [scrimHeight, setScrimHeight] = useState(0);
   const [scrubProgress, setScrubProgress] = useState<number | null>(null);
   const [openSheet, setOpenSheet] = useState<'day' | 'location' | 'settings' | null>(null);
 
@@ -211,6 +216,11 @@ export default function HomeScreen() {
     summary.solarNoon === null ? 0 : getSunPosition(summary.solarNoon, location).altitude;
   const altitudeRatio = peakAltitude > 0 ? sunAltitude / peakAltitude : 0;
 
+  const scrimRamp = Math.min(1, Math.max(0, (SCRIM_FADE_ABOVE - altitudeRatio) / SCRIM_FADE_ABOVE));
+  const scrimIntensity = Math.round(
+    SCRIM_MIN_INTENSITY + scrimRamp * (SCRIM_MAX_INTENSITY - SCRIM_MIN_INTENSITY),
+  );
+
   const sunSize = getSunSize(altitudeRatio, SUN_SIZE_HORIZON, SUN_SIZE_PEAK);
 
   const bubbleLabel = (() => {
@@ -269,12 +279,6 @@ export default function HomeScreen() {
     setHeaderHeight(event.nativeEvent.layout.height);
   }
 
-  function handleScrimLayout(event: LayoutChangeEvent) {
-    const { width, height } = event.nativeEvent.layout;
-    setScrimWidth(width);
-    setScrimHeight(height);
-  }
-
   return (
     <GradientBackground colors={skyGradient}>
       {/*
@@ -331,15 +335,7 @@ export default function HomeScreen() {
 
         <View style={styles.skySpacer} />
 
-        {/*
-          The greeting sits on a drawn dome, not a card — the sun sets behind
-          its crest. Full-bleed via negative margins so the curve runs edge to
-          edge while the text stays inset.
-        */}
-        <View style={styles.scrim} onLayout={handleScrimLayout}>
-          <View style={styles.domeLayer} pointerEvents="none">
-            <HorizonDome width={scrimWidth} height={scrimHeight} />
-          </View>
+        <BlurView intensity={scrimIntensity} tint="light" style={styles.scrim}>
           {/*
             A greeting only makes sense for today. On any other day it says
             "Good afternoon" over data from a day that is not this afternoon, so
@@ -364,7 +360,7 @@ export default function HomeScreen() {
               ? ' does not occur on this day'
               : ` starts at ${goldenHourTime.time} ${goldenHourTime.period}`.trimEnd()}
           </Text>
-        </View>
+        </BlurView>
 
         <Card
           /* Same reason as the greeting: "Today" is a lie on any other day. */
@@ -509,23 +505,16 @@ const styles = StyleSheet.create({
    * the sun is already partly behind the text at altitude 0 rather than
    * touching its top edge. `overflow: hidden` keeps the blur inside the radius.
    */
-  /*
-   * Negative horizontal margins let the dome bleed past the content padding
-   * while the text stays inset. The negative top pulls the crest up over the
-   * sky band, so the sun is already partly behind it at altitude 0.
-   */
   scrim: {
-    marginTop: -Spacing.xxl,
-    marginHorizontal: -Spacing.xl,
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.xxl,
+    marginTop: -Spacing.base,
+    paddingTop: Spacing.lg,
     paddingBottom: Spacing.base,
-  },
-  domeLayer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
+    paddingHorizontal: Spacing.base,
+    marginHorizontal: -Spacing.sm,
+    borderRadius: Radius.xl,
+    borderWidth: Size.hairline,
+    borderColor: Colors.borderLight,
+    overflow: 'hidden',
   },
   greeting: {
     ...Type.body,

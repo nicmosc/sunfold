@@ -66,7 +66,7 @@ DOME_SEETHROUGH_R = 0.34
 
 # Frosted glass DIFFUSES what is behind it. Veiling a sharp sphere reads as
 # tinted acetate; blurring the backdrop inside the dome is what makes it glass.
-DOME_BACKDROP_BLUR = 0.032
+DOME_BACKDROP_BLUR = 0.055
 
 DOME_BLUR = 0.0015
 RIM_THICKNESS = 0.005

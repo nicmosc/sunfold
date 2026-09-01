@@ -14,11 +14,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  * typo is a compile error rather than a silently-empty read.
  */
 export const StorageKeys = {
-  SAVED_CITIES: 'goldenhour:saved-cities',
-  ONBOARDING_COMPLETE: 'goldenhour:onboarding-complete',
-  LAST_KNOWN_LOCATION: 'goldenhour:last-known-location',
-  SETTINGS: 'goldenhour:settings',
-  ACTIVE_LOCATION: 'goldenhour:active-location',
+  SAVED_CITIES: 'sunfold:saved-cities',
+  ONBOARDING_COMPLETE: 'sunfold:onboarding-complete',
+  LAST_KNOWN_LOCATION: 'sunfold:last-known-location',
+  SETTINGS: 'sunfold:settings',
+  ACTIVE_LOCATION: 'sunfold:active-location',
 } as const;
 
 /** Union of the concrete key strings, so callers cannot invent new ones. */

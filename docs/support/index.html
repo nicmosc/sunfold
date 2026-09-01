@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Support — Sunfold</title>
+<meta name="description" content="Help and contact for Sunfold, the sunrise, sunset, golden hour and blue hour app.">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <a class="wordmark" href="../"><span class="dot"></span> Sunfold</a>
+</header>
+
+<h1>Support</h1>
+<p class="updated">Last updated 1 September 2026</p>
+
+<div class="card headline">
+  <p>Something not working, or an idea for the app? Email
+  <a href="mailto:nmoscholios@gmail.com">nmoscholios@gmail.com</a> and you will get a reply
+  from the person who wrote it.</p>
+</div>
+
+<h2>The times look wrong by an hour or more</h2>
+<p>Almost always a time zone question. Sunfold shows each location's times in
+<strong>that location's own time zone</strong>, not yours — so a saved city three zones away
+will read differently from your watch, on purpose. If the times are wrong for the city you
+are standing in, check that iOS has your location and time zone right in Settings.</p>
+
+<h2>Sunfold cannot find my location</h2>
+<p>Location access may be off. Open <strong>Settings → Sunfold → Location</strong> and choose
+<em>While Using the App</em>. Sunfold still works without it — it falls back to a default
+location, and you can add any city by name.</p>
+
+<h2>A city I searched for did not appear</h2>
+<p>City search goes through Apple's geocoder, so it needs a network connection. Sunfold also
+discards any result whose time zone it cannot determine, because a city stored with the wrong
+zone would show plausible times that are hours out. Try the city with its country, for
+example <em>Valencia, Spain</em>.</p>
+
+<h2>Why does golden hour not appear on some days?</h2>
+<p>Far enough north or south, at the right time of year, some solar events genuinely do not
+happen — the sun may never rise, never set, or never drop far enough below the horizon for
+blue hour. Sunfold shows those days as they are rather than inventing a time.</p>
+
+<h2>How are the times calculated?</h2>
+<p>From your coordinates, on your device, using standard solar position astronomy. Golden hour
+is the sun between 6° above and 4° below the horizon; blue hour runs from 4° to 6° below.
+Nothing is fetched from a weather or forecast service — these are the geometric times, not a
+prediction of how good the light will look.</p>
+
+<h2>Privacy</h2>
+<p>Sunfold has no accounts, no analytics and no servers. The full detail is in the
+<a href="../privacy/">Privacy Policy</a>.</p>
+
+<footer>
+  <a href="../">Sunfold</a>
+  <a href="../privacy/">Privacy</a>
+</footer>
+
+</div>
+</body>
+</html>

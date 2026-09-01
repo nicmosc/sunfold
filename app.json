@@ -1,22 +1,22 @@
 {
   "expo": {
-    "name": "Golden Hour",
-    "slug": "golden-hour",
+    "name": "Sunfold",
+    "slug": "sunfold",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "goldenhour",
+    "scheme": "sunfold",
     "userInterfaceStyle": "light",
     "ios": {
-      "bundleIdentifier": "com.nicolaos.goldenhour",
+      "bundleIdentifier": "com.nicolaos.sunfold",
       "supportsTablet": false,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Golden Hour uses your location to calculate the sunrise, sunset, golden hour and blue hour times for exactly where you are. Your location stays on your device and is never uploaded or shared.",
+        "NSLocationWhenInUseUsageDescription": "Sunfold uses your location to calculate the sunrise, sunset, golden hour and blue hour times for exactly where you are. Times are computed on your device; your coordinates go to Apple's geocoder only to name your location.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "com.nicolaos.goldenhour",
+      "package": "com.nicolaos.sunfold",
       "adaptiveIcon": {
         "backgroundColor": "#FBF4F1",
         "foregroundImage": "./assets/images/android-icon-foreground.png"
@@ -36,7 +36,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Golden Hour uses your location to calculate the sunrise, sunset, golden hour and blue hour times for exactly where you are. Your location stays on your device and is never uploaded or shared."
+          "locationWhenInUsePermission": "Sunfold uses your location to calculate the sunrise, sunset, golden hour and blue hour times for exactly where you are. Times are computed on your device; your coordinates go to Apple's geocoder only to name your location."
         }
       ]
     ],
@@ -46,7 +46,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "24a6674a-8133-43dc-8812-96edd4860798"
+        "projectId": "c8f44358-7eba-4174-bd86-d86e01e8b8c4"
       }
     }
   }

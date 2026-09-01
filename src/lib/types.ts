@@ -1,5 +1,5 @@
 /**
- * Domain types for the Golden Hour app.
+ * Domain types for the Sunfold app.
  *
  * This module is pure data: no React, no react-native, no side effects.
  */

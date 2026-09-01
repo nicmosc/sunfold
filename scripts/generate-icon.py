@@ -1,5 +1,5 @@
 """
-Generates Golden Hour's app icon, splash mark and Android adaptive foreground.
+Generates Sunfold's app icon, splash mark and Android adaptive foreground.
 
     python3 scripts/generate-icon.py
 
@@ -28,6 +28,8 @@ The field is faintly COOL on purpose: the dome is warm cream, and that small
 temperature difference is the only thing making its silhouette readable. On a
 pure white field the dome disappears entirely.
 """
+
+from pathlib import Path
 
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
@@ -229,7 +231,8 @@ def build(size, opaque_field):
     return base.resize((size, size), Image.LANCZOS)
 
 
-ROOT = "/Users/nick/Documents/Personal/golden-hour/assets/images"
+# Resolved from this file so the script survives the repo being moved or renamed.
+ROOT = Path(__file__).resolve().parent.parent / "assets" / "images"
 
 icon = build(OUT, opaque_field=True).convert("RGB")
 icon.save(f"{ROOT}/icon.png")

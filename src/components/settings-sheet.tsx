@@ -7,18 +7,15 @@ import { Colors, Spacing, Type } from '@/constants/theme';
 import { useSettings } from '@/hooks/use-settings';
 
 /*
- * TODO: Replace with a real, reachable page before App Store submission —
- * App Review follows this link.
+ * Served by GitHub Pages from `docs/` in this repo. App Review follows this
+ * link, so it must stay reachable for as long as the app is on the store.
  *
  * A privacy policy URL is mandatory in App Store Connect for every app. There
  * is deliberately no Terms of Use: Apple only requires an EULA for apps with
  * subscriptions or auto-renewing purchases, and a dead placeholder link is
  * worse than no link at all.
- *
- * The page itself can be short, because the honest version is short: the app
- * reads your location on device to compute sun times and uploads nothing.
  */
-const PRIVACY_URL = 'https://example.com/privacy';
+const PRIVACY_URL = 'https://nicmosc.github.io/sunfold/privacy/';
 
 export interface SettingsSheetProps {
   visible: boolean;
@@ -71,8 +68,8 @@ export function SettingsSheet({ visible, onClose }: SettingsSheetProps) {
       <Text style={styles.heading}>About</Text>
 
       <Text style={styles.about}>
-        Golden Hour computes every time on your device from your coordinates. Nothing is uploaded
-        and there is no account.
+        Sunfold computes every time on your device from your coordinates. Place names come from
+        Apple&apos;s geocoder. Nothing is sent to us, and there is no account.
       </Text>
 
       <Text style={styles.links}>

@@ -1,4 +1,4 @@
-# Golden Hour
+# Sunfold
 
 Sunrise, sunset, golden hour and blue hour times for wherever you are — computed
 entirely on device.
@@ -120,7 +120,7 @@ questionnaire, age rating. Review is typically 24–48h.
 - `NSLocationWhenInUseUsageDescription` — a specific purpose string. Apple
   rejects vague ones ("to improve your experience").
 - `supportsTablet: false` — avoids needing iPad screenshots.
-- `bundleIdentifier` — `com.nicolaos.goldenhour`.
+- `bundleIdentifier` — `com.nicolaos.sunfold`.
 
 ### Before the first submission
 

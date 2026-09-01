@@ -1,0 +1,126 @@
+/* Sunfold — shared styles for the public pages.
+   Palette lifted from src/constants/theme.ts so the site and the app agree. */
+:root {
+  --accent: #FA7A18;
+  --accent-soft: #FFB067;
+  --text: #16161A;
+  --text-secondary: #5C5C63;
+  --text-tertiary: #8A8A90;
+  --canvas-a: #FDEDE4;
+  --canvas-b: #FBF4F1;
+  --canvas-c: #F3EEFB;
+  --card: rgba(255, 255, 255, 0.72);
+  --card-border: rgba(255, 255, 255, 0.8);
+  --rule: rgba(22, 22, 26, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text: #F4F2F0;
+    --text-secondary: #B6B3B0;
+    --text-tertiary: #8A8A90;
+    --canvas-a: #241A16;
+    --canvas-b: #1A1719;
+    --canvas-c: #191722;
+    --card: rgba(255, 255, 255, 0.05);
+    --card-border: rgba(255, 255, 255, 0.09);
+    --rule: rgba(255, 255, 255, 0.1);
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 0 20px 96px;
+  min-height: 100vh;
+  background:
+    radial-gradient(1100px 620px at 12% -8%, var(--canvas-a) 0%, transparent 62%),
+    radial-gradient(900px 560px at 92% 4%, var(--canvas-c) 0%, transparent 58%),
+    var(--canvas-b);
+  color: var(--text);
+  font: 400 17px/1.65 ui-rounded, -apple-system, BlinkMacSystemFont, "SF Pro Rounded",
+        "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 660px; margin: 0 auto; }
+
+header { padding: 72px 0 8px; }
+
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.wordmark .dot {
+  width: 15px; height: 15px; border-radius: 50%;
+  background: linear-gradient(150deg, #FFA451, #FB7A1E);
+  box-shadow: 0 0 16px rgba(250, 122, 24, 0.45);
+}
+
+h1 {
+  margin: 28px 0 6px;
+  font-size: clamp(30px, 6vw, 40px);
+  line-height: 1.12;
+  letter-spacing: -0.022em;
+  font-weight: 700;
+}
+
+.updated { margin: 0 0 40px; color: var(--text-tertiary); font-size: 14.5px; }
+
+.lede {
+  margin: 0 0 40px;
+  font-size: 19.5px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+  padding: 26px 30px;
+  margin: 0 0 34px;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.card.headline p { margin: 0; font-size: 18px; color: var(--text); }
+
+h2 {
+  margin: 44px 0 12px;
+  font-size: 21px;
+  letter-spacing: -0.012em;
+  font-weight: 650;
+}
+
+h2:first-child { margin-top: 0; }
+
+p, li { color: var(--text-secondary); }
+p { margin: 0 0 16px; }
+ul { margin: 0 0 16px; padding-left: 22px; }
+li { margin-bottom: 9px; }
+
+strong { color: var(--text); font-weight: 600; }
+
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:hover { color: var(--accent-soft); }
+
+footer {
+  margin-top: 64px;
+  padding-top: 26px;
+  border-top: 1px solid var(--rule);
+  font-size: 14.5px;
+  color: var(--text-tertiary);
+}
+
+footer a { margin-right: 18px; }
+
+.nav { margin: 0 0 8px; }

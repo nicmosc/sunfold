@@ -47,7 +47,7 @@ export default function OnboardingScreen() {
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.hero}>
           <Text style={styles.welcome}>Welcome to</Text>
-          <Text style={styles.wordmark}>Golden Hour</Text>
+          <Text style={styles.wordmark}>Sunfold</Text>
 
           <View style={styles.tile}>
             <Image

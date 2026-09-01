@@ -1,5 +1,5 @@
 /**
- * Design tokens for Golden Hour.
+ * Design tokens for Sunfold.
  *
  * Extracted from the reference design: soft pastel gradient canvas (pink -> peach
  * -> lavender), frosted translucent cards, a single warm orange accent, and one

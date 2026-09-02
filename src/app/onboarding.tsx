@@ -7,8 +7,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GradientBackground } from '@/components/ui/gradient-background';
 import { ButtonGradient, Colors, Radius, Shadow, Spacing, Type } from '@/constants/theme';
+import { useActiveLocation } from '@/hooks/use-active-location';
 import { useOnboarding } from '@/hooks/use-onboarding';
-import { requestLocationPermission } from '@/lib/location';
 
 /*
  * The app mark is the ICON artwork, not the in-app SunDisc component. Onboarding
@@ -27,16 +27,27 @@ const BUTTON_GRADIENT_END = { x: 1, y: 0 };
 
 export default function OnboardingScreen() {
   const { complete } = useOnboarding();
+  const { refreshDevice } = useActiveLocation();
   const [isRequesting, setIsRequesting] = useState(false);
 
   async function handleGetStarted() {
     if (isRequesting) return;
     setIsRequesting(true);
 
-    // The result is deliberately ignored: a denial is a valid outcome. The app
-    // falls back to DEFAULT_LOCATION rather than trapping the user on this
-    // screen, and the Cities tab still works entirely without location access.
-    await requestLocationPermission();
+    /*
+     * This tap is the app's ONLY permission prompt: `ActiveLocationProvider`
+     * suppresses its own until onboarding is done, so asking here is what puts
+     * the dialog in front of a user who has just read what it is for.
+     *
+     * Going through the provider rather than calling `requestLocationPermission`
+     * directly means the resulting fix lands in the state the tabs then render,
+     * instead of being thrown away and rediscovered a moment later.
+     *
+     * Nothing is checked afterwards: a denial is a valid outcome. The app falls
+     * back to DEFAULT_LOCATION rather than trapping the user on this screen,
+     * and the Cities tab still works entirely without location access.
+     */
+    await refreshDevice();
     await complete();
 
     router.replace('/(tabs)');

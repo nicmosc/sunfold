@@ -1,5 +1,5 @@
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Card, CardDivider } from '@/components/ui/card';
@@ -7,7 +7,9 @@ import { GradientBackground } from '@/components/ui/gradient-background';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { Colors, Spacing, TabBarInset, Type } from '@/constants/theme';
 import { useActiveLocation } from '@/hooks/use-active-location';
+import { useScrollReset } from '@/hooks/use-scroll-reset';
 import { useSettings } from '@/hooks/use-settings';
+import { useTabFocus } from '@/hooks/use-tab-focus';
 import { formatDuration, formatTime } from '@/lib/format';
 import { getNotableDates, getOutlook, type NotableKind } from '@/lib/outlook';
 import { getSunPosition } from '@/lib/sun';
@@ -56,6 +58,10 @@ function formatDayLength(ms: number | null): string {
 }
 
 export default function TimelineScreen() {
+  const scrollRef = useRef<ScrollView>(null);
+  const { isFocused } = useTabFocus('/timeline');
+  useScrollReset(scrollRef, isFocused);
+
   const { location } = useActiveLocation();
   const { settings } = useSettings();
   const { hour12 } = settings;
@@ -104,7 +110,10 @@ export default function TimelineScreen() {
 
   return (
     <GradientBackground colors={skyGradient}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}>
         <ScreenHeader
           title="Outlook"
           subtitle={`How the light is shifting in ${location.name}`}

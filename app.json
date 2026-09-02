@@ -36,7 +36,10 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Sunfold uses your location to calculate the sunrise, sunset, golden hour and blue hour times for exactly where you are. Times are computed on your device; your coordinates go to Apple's geocoder only to name your location."
+          "locationWhenInUsePermission": "Sunfold uses your location to calculate the sunrise, sunset, golden hour and blue hour times for exactly where you are. Times are computed on your device; your coordinates go to Apple's geocoder only to name your location.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false,
+          "motionUsagePermission": false
         }
       ]
     ],

@@ -44,8 +44,18 @@ export interface UseLocationResult {
   refresh: () => Promise<void>;
 }
 
-const DENIED_MESSAGE =
-  'Location access is off, so times are shown for New York. Add a city to track somewhere else.';
+/*
+ * Names no city on purpose. The denied branch below keeps a cached position if
+ * there is one and only falls back to DEFAULT_LOCATION when there is not, so
+ * this message cannot know which place is on screen — an earlier version said
+ * "New York" and was wrong for anyone who granted access once and later revoked
+ * it. Describing what is missing instead is true in both cases.
+ *
+ * It also stops at the diagnosis: both places that render it supply their own
+ * next step (the home screen opens Settings, the picker is already the place
+ * you choose a city from), so spelling one out here would duplicate them.
+ */
+const DENIED_MESSAGE = 'Location access is off, so times are not following you.';
 const NO_FIX_MESSAGE = 'Could not get a location fix. Showing the last known position.';
 
 export function useLocation({ requestOnMount = true }: UseLocationOptions = {}): UseLocationResult {

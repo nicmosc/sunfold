@@ -1,9 +1,11 @@
 import { BlurView } from 'expo-blur';
 import { SymbolView } from 'expo-symbols';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AppState,
   LayoutChangeEvent,
+  Linking,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -23,7 +25,9 @@ import { DaylightArc } from '@/components/viz/daylight-arc';
 import { SunSky } from '@/components/viz/sun-sky';
 import { Colors, Radius, Size, Spacing, TabBarInset, Type } from '@/constants/theme';
 import { useActiveLocation } from '@/hooks/use-active-location';
+import { useScrollReset } from '@/hooks/use-scroll-reset';
 import { useSettings } from '@/hooks/use-settings';
+import { useTabFocus } from '@/hooks/use-tab-focus';
 import {
   formatCountdown,
   formatDuration,
@@ -83,9 +87,23 @@ interface HeroEvent {
 }
 
 export default function HomeScreen() {
-  const { location } = useActiveLocation();
+  const scrollRef = useRef<ScrollView>(null);
+  const { isFocused } = useTabFocus('/');
+  useScrollReset(scrollRef, isFocused);
+
+  const { location, isDeviceLocation, deviceError, deviceStatus } = useActiveLocation();
   const { settings } = useSettings();
   const { hour12, showTwilight } = settings;
+
+  /*
+   * Why `deviceStatus` and not just `deviceError`: the error is also set for a
+   * failed fix, where permission is fine and pointing the user at Settings
+   * would be wrong advice. Only a standing denial is actionable there.
+   *
+   * `isDeviceLocation` gates it too — under a pinned city the device position
+   * is not what is on screen, so the notice would be explaining nothing.
+   */
+  const showLocationNotice = deviceStatus === 'denied' && isDeviceLocation && deviceError !== null;
 
   const [now, setNow] = useState(() => new Date());
   const [dayOffset, setDayOffset] = useState(0);
@@ -230,7 +248,18 @@ export default function HomeScreen() {
       : `${formatted.time} ${formatted.period}`.trim();
   })();
 
-  const countdown = hero === null ? null : formatCountdown(hero.date.getTime() - now.getTime());
+  /*
+   * Two clocks meet here, and they disagree by up to a minute: `hero` is picked
+   * against `minuteNow` so its memo does not rerun every second, while the
+   * countdown has to be measured against `now` to tick. An event inside the
+   * current minute therefore reads as upcoming but yields a delta of <= 0,
+   * which `formatCountdown` renders as "now" — and the phrasing below has to
+   * cope with that rather than emitting "Golden hour in now".
+   */
+  const heroDeltaMs = hero === null ? null : hero.date.getTime() - now.getTime();
+  const countdown = heroDeltaMs === null ? null : formatCountdown(heroDeltaMs);
+  /** The event's moment has arrived: "Golden hour now", not "... in now". */
+  const heroIsNow = heroDeltaMs !== null && heroDeltaMs <= 0;
   const remaining = formatDuration(daylight.remainingMs);
   const sunriseTime = formatTime(summary.sunrise, location.timeZone, hour12);
   const sunsetTime = formatTime(summary.sunset, location.timeZone, hour12);
@@ -252,11 +281,16 @@ export default function HomeScreen() {
     [location],
   );
 
-
   function handleSelectDay(offset: number) {
     setDayOffset(offset);
     setScrubProgress(null);
     setOpenSheet(null);
+  }
+
+  function handleOpenSettings() {
+    // Rejects only if the OS declines to open the pane, and there is no second
+    // route to offer if it does, so the failure is a no-op rather than an alert.
+    void Linking.openSettings().catch(() => undefined);
   }
 
   function handleTimelineLayout(event: LayoutChangeEvent) {
@@ -303,6 +337,7 @@ export default function HomeScreen() {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}>
@@ -332,6 +367,25 @@ export default function HomeScreen() {
               </View>
             }
           />
+
+          {/*
+            Sits inside the measured header block, under the location pill it
+            explains, so it reads as a footnote to the location rather than an
+            error banner over the hero — and so the pinned sun layer, which is
+            offset by this block's height, moves down with it.
+          */}
+          {showLocationNotice && (
+            <Pressable
+              onPress={handleOpenSettings}
+              accessibilityRole="button"
+              accessibilityLabel={`${deviceError} Opens Settings, where you can turn location access on.`}
+              style={({ pressed }) => [styles.notice, pressed && styles.noticePressed]}>
+              <SymbolView name="location.slash.fill" size={13} tintColor={Colors.textSecondary} />
+              <Text style={styles.noticeText}>
+                {deviceError} <Text style={styles.noticeAction}>Open Settings ›</Text>
+              </Text>
+            </Pressable>
+          )}
         </View>
 
         <View style={styles.skySpacer} />
@@ -351,7 +405,9 @@ export default function HomeScreen() {
 
           {hero !== null && countdown !== null && (
             <Text style={styles.hero}>
-              {hero.label} in <Text style={styles.heroValue}>{countdown}</Text>
+              {hero.label}
+              {heroIsNow ? ' ' : ' in '}
+              <Text style={styles.heroValue}>{countdown}</Text>
             </Text>
           )}
 
@@ -491,6 +547,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
+  },
+  /*
+   * Deliberately quiet: this explains a fallback, it does not report a failure,
+   * so it is frosted like the pills above it rather than tinted as a warning.
+   */
+  notice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.pill,
+    borderWidth: Size.hairline,
+    borderColor: Colors.borderLight,
+  },
+  noticePressed: {
+    opacity: 0.7,
+  },
+  noticeText: {
+    ...Type.caption,
+    flex: 1,
+    color: Colors.textSecondary,
+  },
+  /** The tap affordance — nothing else on this row looks interactive. */
+  noticeAction: {
+    color: Colors.accent,
+    fontWeight: '600',
   },
   /** Pinned sun layer, inset to match the scroll content's horizontal padding. */
   skyLayer: {

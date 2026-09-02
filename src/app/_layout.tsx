@@ -50,21 +50,28 @@ function RootNavigator() {
 }
 
 /**
- * Provider order matters: `ActiveLocationProvider` calls `useLocation`
- * internally, and every screen reads the active location and the settings, so
- * both must sit above the navigator.
+ * Provider order matters, in both directions:
+ *
+ * - every screen reads the active location and the settings, so both providers
+ *   must sit above the navigator;
+ * - `ActiveLocationProvider` calls `useCities`, so it must sit inside
+ *   `CitiesProvider`;
+ * - `ActiveLocationProvider` also calls `useOnboarding`, to hold the permission
+ *   prompt back until the onboarding CTA is tapped. That is the only reason
+ *   `OnboardingProvider` is above it — flip the two and the prompt fires over
+ *   the splash screen on a fresh install, before the user has seen why.
  */
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <SettingsProvider>
-        <CitiesProvider>
-          <ActiveLocationProvider>
-            <OnboardingProvider>
+        <OnboardingProvider>
+          <CitiesProvider>
+            <ActiveLocationProvider>
               <RootNavigator />
-            </OnboardingProvider>
-          </ActiveLocationProvider>
-        </CitiesProvider>
+            </ActiveLocationProvider>
+          </CitiesProvider>
+        </OnboardingProvider>
       </SettingsProvider>
     </SafeAreaProvider>
   );

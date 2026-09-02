@@ -1,5 +1,5 @@
 import { SymbolView } from 'expo-symbols';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -17,7 +17,9 @@ import { CitySearchSheet } from '@/components/city-search-sheet';
 import { Colors, Size, Spacing, TabBarInset, Type } from '@/constants/theme';
 import { useActiveLocation } from '@/hooks/use-active-location';
 import { useCities } from '@/hooks/use-cities';
+import { useScrollReset } from '@/hooks/use-scroll-reset';
 import { useSettings } from '@/hooks/use-settings';
+import { useTabFocus } from '@/hooks/use-tab-focus';
 import { formatCountdown, formatTime } from '@/lib/format';
 import { getLocationKey } from '@/lib/location';
 import { getDaySummary, getNextEvent, getSunPosition } from '@/lib/sun';
@@ -133,6 +135,10 @@ function CityCard({ city, isActive, hour12, onSelect, onRemove }: CityCardProps)
 }
 
 export default function CitiesScreen() {
+  const listRef = useRef<FlatList<Location>>(null);
+  const { isFocused } = useTabFocus('/cities');
+  useScrollReset(listRef, isFocused);
+
   const { cities, addCity, removeCity, isLoading } = useCities();
   const { location, setLocation } = useActiveLocation();
   const { settings } = useSettings();
@@ -188,6 +194,7 @@ export default function CitiesScreen() {
       />
 
       <FlatList
+        ref={listRef}
         data={sorted}
         keyExtractor={getLocationKey}
         renderItem={renderCity}

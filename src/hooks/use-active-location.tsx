@@ -2,7 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from 'react';
 
 import { useCities } from '@/hooks/use-cities';
-import { useLocation } from '@/hooks/use-location';
+import { useLocation, type LocationStatus } from '@/hooks/use-location';
+import { useOnboarding } from '@/hooks/use-onboarding';
 import { DEFAULT_LOCATION, getLocationKey, isLocation } from '@/lib/location';
 import { getItem, removeItem, setItem, StorageKeys } from '@/lib/storage';
 import type { Location } from '@/lib/types';
@@ -16,11 +17,17 @@ interface ActiveLocationContextValue {
   deviceLocation: Location | null;
   /** Human-readable reason the device position is a fallback, else null. */
   deviceError: string | null;
+  /**
+   * The state behind `deviceError`, because the message alone cannot be acted
+   * on: 'denied' is a standing refusal a trip to Settings can undo, whereas a
+   * failed fix leaves permission intact and nothing for the user to fix.
+   */
+  deviceStatus: LocationStatus;
   /** Pin a specific city. */
   setLocation: (location: Location) => Promise<void>;
   /** Go back to following the device. */
   followDevice: () => Promise<void>;
-  /** Re-ask for permission and re-fetch the device position. */
+  /** Ask for permission and fetch a fix. This is the onboarding CTA's prompt. */
   refreshDevice: () => Promise<void>;
 }
 
@@ -35,7 +42,23 @@ const ActiveLocationContext = createContext<ActiveLocationContextValue | null>(n
  * so the picker can offer to go back to it.
  */
 export function ActiveLocationProvider({ children }: { children: ReactNode }) {
-  const { location: deviceLocation, error: deviceError, refresh } = useLocation();
+  const { hasOnboarded } = useOnboarding();
+
+  /*
+   * The permission dialog belongs to the onboarding CTA, not to this mount.
+   * While `hasOnboarded` is null (flag still on its way from disk) or false
+   * (onboarding on screen) `useLocation` takes the non-prompting
+   * `getLocationPermission()` path, so nothing can appear behind the splash
+   * screen. Completing onboarding flips the flag and re-runs the effect, by
+   * which point the CTA has already had the answer — so the request resolves
+   * from the existing decision instead of prompting a second time.
+   */
+  const {
+    location: deviceLocation,
+    error: deviceError,
+    status: deviceStatus,
+    refresh,
+  } = useLocation({ requestOnMount: hasOnboarded === true });
   const { cities, isLoading: citiesLoading } = useCities();
   const [pinned, setPinned] = useState<Location | null>(null);
 
@@ -102,6 +125,7 @@ export function ActiveLocationProvider({ children }: { children: ReactNode }) {
       isDeviceLocation: isDevice,
       deviceLocation,
       deviceError,
+      deviceStatus,
       setLocation,
       followDevice,
       refreshDevice: refresh,
@@ -112,6 +136,7 @@ export function ActiveLocationProvider({ children }: { children: ReactNode }) {
     citiesLoaded,
     deviceLocation,
     deviceError,
+    deviceStatus,
     setLocation,
     followDevice,
     refresh,

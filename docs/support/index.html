@@ -5,17 +5,49 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Support — Sunfold</title>
 <meta name="description" content="Help and contact for Sunfold, the sunrise, sunset, golden hour and blue hour app.">
+<meta name="theme-color" content="#F1D6E5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#2C1D26" media="(prefers-color-scheme: dark)">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
 <div class="wrap">
 
-<header>
-  <a class="wordmark" href="../"><span class="dot"></span> Sunfold</a>
+<header class="masthead">
+  <a class="wordmark" href="../">
+    <svg class="mark" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="markSun" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#FFC978"/>
+          <stop offset=".55" stop-color="#FF9C3F"/>
+          <stop offset="1" stop-color="#F4761B"/>
+        </linearGradient>
+        <linearGradient id="markHill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#FFD1A2"/>
+          <stop offset="1" stop-color="#FFEAD6"/>
+        </linearGradient>
+        <clipPath id="markClip">
+          <rect width="40" height="40" rx="11"/>
+        </clipPath>
+      </defs>
+      <g clip-path="url(#markClip)">
+        <rect width="40" height="40" fill="#FFFAF5"/>
+        <circle cx="20" cy="18" r="9" fill="url(#markSun)"/>
+        <ellipse cx="20" cy="39" rx="22" ry="16" fill="url(#markHill)"/>
+      </g>
+    </svg>
+    Sunfold
+  </a>
 </header>
 
-<h1>Support</h1>
-<p class="updated">Last updated 1 September 2026</p>
+<div class="hero">
+  <span class="sun" aria-hidden="true"></span>
+  <span class="hill" aria-hidden="true"></span>
+  <h1>Support</h1>
+  <p class="updated">Last updated 1 September 2026</p>
+</div>
 
 <div class="card headline">
   <p>Something not working, or an idea for the app? Email
@@ -23,41 +55,55 @@
   from the person who wrote it.</p>
 </div>
 
-<h2>The times look wrong by an hour or more</h2>
-<p>Almost always a time zone question. Sunfold shows each location's times in
-<strong>that location's own time zone</strong>, not yours — so a saved city three zones away
-will read differently from your watch, on purpose. If the times are wrong for the city you
-are standing in, check that iOS has your location and time zone right in Settings.</p>
+<section class="card">
+  <h2>The times look wrong by an hour or more</h2>
+  <p>Almost always a time zone question. Sunfold shows each location's times in
+  <strong>that location's own time zone</strong>, not yours — so a saved city three zones away
+  will read differently from your watch, on purpose. If the times are wrong for the city you
+  are standing in, check that iOS has your location and time zone right in Settings.</p>
+</section>
 
-<h2>Sunfold cannot find my location</h2>
-<p>Location access may be off. Open <strong>Settings → Sunfold → Location</strong> and choose
-<em>While Using the App</em>. Sunfold still works without it — it falls back to a default
-location, and you can add any city by name.</p>
+<section class="card">
+  <h2>Sunfold cannot find my location</h2>
+  <p>Location access may be off. Open <strong>Settings → Sunfold → Location</strong> and choose
+  <em>While Using the App</em>. Sunfold still works without it — it falls back to a default
+  location, and you can add any city by name.</p>
+</section>
 
-<h2>A city I searched for did not appear</h2>
-<p>City search goes through Apple's geocoder, so it needs a network connection. Sunfold also
-discards any result whose time zone it cannot determine, because a city stored with the wrong
-zone would show plausible times that are hours out. Try the city with its country, for
-example <em>Valencia, Spain</em>.</p>
+<section class="card">
+  <h2>A city I searched for did not appear</h2>
+  <p>City search goes through Apple's geocoder, so it needs a network connection. Sunfold also
+  discards any result whose time zone it cannot determine, because a city stored with the wrong
+  zone would show plausible times that are hours out. Try the city with its country, for
+  example <em>Valencia, Spain</em>.</p>
+</section>
 
-<h2>Why does golden hour not appear on some days?</h2>
-<p>Far enough north or south, at the right time of year, some solar events genuinely do not
-happen — the sun may never rise, never set, or never drop far enough below the horizon for
-blue hour. Sunfold shows those days as they are rather than inventing a time.</p>
+<section class="card">
+  <h2>Why does golden hour not appear on some days?</h2>
+  <p>Far enough north or south, at the right time of year, some solar events genuinely do not
+  happen — the sun may never rise, never set, or never drop far enough below the horizon for
+  blue hour. Sunfold shows those days as they are rather than inventing a time.</p>
+</section>
 
-<h2>How are the times calculated?</h2>
-<p>From your coordinates, on your device, using standard solar position astronomy. Golden hour
-is the sun between 6° above and 4° below the horizon; blue hour runs from 4° to 6° below.
-Nothing is fetched from a weather or forecast service — these are the geometric times, not a
-prediction of how good the light will look.</p>
+<section class="card">
+  <h2>How are the times calculated?</h2>
+  <p>From your coordinates, on your device, using standard solar position astronomy. Golden hour
+  is the sun between 6° above and 4° below the horizon; blue hour runs from 4° to 6° below.
+  Nothing is fetched from a weather or forecast service — these are the geometric times, not a
+  prediction of how good the light will look.</p>
+</section>
 
-<h2>Privacy</h2>
-<p>Sunfold has no accounts, no analytics and no servers. The full detail is in the
-<a href="../privacy/">Privacy Policy</a>.</p>
+<section class="card">
+  <h2>Privacy</h2>
+  <p>Sunfold has no accounts, no analytics and no servers. The full detail is in the
+  <a href="../privacy/">Privacy Policy</a>.</p>
+</section>
 
 <footer>
-  <a href="../">Sunfold</a>
-  <a href="../privacy/">Privacy</a>
+  <nav class="footer-pill">
+    <a href="../">Sunfold</a>
+    <a href="../privacy/">Privacy</a>
+  </nav>
 </footer>
 
 </div>

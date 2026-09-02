@@ -1,126 +1,453 @@
 /* Sunfold — shared styles for the public pages.
-   Palette lifted from src/constants/theme.ts so the site and the app agree. */
+   Palette lifted from src/constants/theme.ts so the site and the app agree:
+   a soft pastel dawn canvas (pink -> peach -> warm paper), frosted cards,
+   one warm orange accent, and the sun-over-hill mark drawn in CSS. */
+
+/* ---------------------------------------------------------------- tokens */
+
 :root {
+  color-scheme: light;
+
+  /* Brand fills — straight from theme.ts. Decorative use only. */
   --accent: #FA7A18;
   --accent-soft: #FFB067;
+  --accent-muted: #FFD9B5;
+  --sun-a: #FFC978;
+  --sun-b: #FF9C3F;
+  --sun-c: #F4761B;
+
+  /* Brand ink. The raw accent is only ~2.7:1 on the canvas, so orange *text*
+     steps down to these. --accent-ink clears 4.5:1 at body size; the lighter
+     --accent-display is reserved for >=20px bold, where 3:1 is the bar. */
+  --accent-ink: #B34B08;
+  --accent-ink-hover: #8F3A05;
+  --accent-display: #CE5A0B;
+
   --text: #16161A;
   --text-secondary: #5C5C63;
-  --text-tertiary: #8A8A90;
-  --canvas-a: #FDEDE4;
-  --canvas-b: #FBF4F1;
-  --canvas-c: #F3EEFB;
+  --text-tertiary: #67636D;
+  --display-soft: #7C7883;
+
+  /* Canvas: dawn pink at the crown, warm paper by the fold. */
+  --sky-1: #F0D3E4;
+  --sky-2: #F7D5C9;
+  --sky-3: #FBE7DA;
+  --canvas: #FBF4F1;
+  --lilac: rgba(196, 178, 214, 0.34);
+  --blush: rgba(240, 216, 230, 0.46);
+
+  /* The hill the sun rises over. */
+  --hill-1: #FEF2E6;
+  --hill-2: #FDF7F2;
+  --hill-3: rgba(253, 247, 242, 0);
+  --bloom: rgba(255, 158, 64, 0.5);
+  --bloom-0: rgba(255, 158, 64, 0);
+  --halo-near: rgba(255, 150, 58, 0.28);
+  --halo-far: rgba(255, 150, 58, 0.14);
+
+  /* Frosted surfaces. */
   --card: rgba(255, 255, 255, 0.72);
-  --card-border: rgba(255, 255, 255, 0.8);
-  --rule: rgba(22, 22, 26, 0.08);
+  --card-strong: rgba(255, 255, 255, 0.84);
+  --card-border: rgba(255, 255, 255, 0.9);
+  --card-shadow: 0 18px 44px -22px rgba(122, 74, 46, 0.3),
+                 0 2px 6px rgba(122, 74, 46, 0.05);
+  --pill: rgba(255, 255, 255, 0.78);
+  --rule: rgba(22, 22, 26, 0.07);
+
+  /* Crest geometry, all measured from the top of .hero. */
+  --sun-size: 152px;
+  --crest-lift: 112px;
+  --hero-pad: 184px;
+
+  --radius: 24px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --text: #F4F2F0;
-    --text-secondary: #B6B3B0;
-    --text-tertiary: #8A8A90;
-    --canvas-a: #241A16;
-    --canvas-b: #1A1719;
-    --canvas-c: #191722;
-    --card: rgba(255, 255, 255, 0.05);
-    --card-border: rgba(255, 255, 255, 0.09);
+    color-scheme: dark;
+
+    /* Dusk rather than dawn: the sun sits at the horizon and the sky is plum.
+       Same motif, lower on the arc — not an inverted light theme. */
+    --sun-a: #FFB07A;
+    --sun-b: #F4703A;
+    --sun-c: #C2331C;
+
+    --accent-ink: #FFA451;
+    --accent-ink-hover: #FFC48C;
+    --accent-display: #FFA451;
+
+    --text: #F6F2EF;
+    --text-secondary: #C6BDB8;
+    --text-tertiary: #ACA19E;
+    --display-soft: #9E9298;
+
+    --sky-1: #2C1D26;
+    --sky-2: #2A1C1D;
+    --sky-3: #221A1B;
+    --canvas: #171416;
+    --lilac: rgba(124, 90, 147, 0.28);
+    --blush: rgba(146, 84, 96, 0.2);
+
+    --hill-1: #3B2620;
+    --hill-2: #2A1E1D;
+    --hill-3: rgba(23, 20, 22, 0);
+    --bloom: rgba(244, 112, 58, 0.34);
+    --bloom-0: rgba(244, 112, 58, 0);
+    --halo-near: rgba(244, 112, 58, 0.26);
+    --halo-far: rgba(244, 112, 58, 0.14);
+
+    --card: rgba(255, 255, 255, 0.055);
+    --card-strong: rgba(255, 255, 255, 0.08);
+    --card-border: rgba(255, 255, 255, 0.085);
+    --card-shadow: 0 18px 44px -22px rgba(0, 0, 0, 0.55);
+    --pill: rgba(255, 255, 255, 0.07);
     --rule: rgba(255, 255, 255, 0.1);
   }
 }
 
+@media (max-width: 560px) {
+  :root {
+    --sun-size: 116px;
+    --crest-lift: 86px;
+    --hero-pad: 142px;
+    --radius: 20px;
+  }
+}
+
+/* ------------------------------------------------------------- structure */
+
 * { box-sizing: border-box; }
+
+/* The hill is wider than the viewport on purpose; clip it rather than let it
+   open a horizontal scrollbar. `clip` where supported so nothing else in the
+   page becomes a scroll container. */
+html, body { overflow-x: hidden; }
+@supports (overflow-x: clip) {
+  html, body { overflow-x: clip; }
+}
 
 body {
   margin: 0;
-  padding: 0 20px 96px;
+  padding: 0 20px 88px;
   min-height: 100vh;
-  background:
-    radial-gradient(1100px 620px at 12% -8%, var(--canvas-a) 0%, transparent 62%),
-    radial-gradient(900px 560px at 92% 4%, var(--canvas-c) 0%, transparent 58%),
-    var(--canvas-b);
   color: var(--text);
-  font: 400 17px/1.65 ui-rounded, -apple-system, BlinkMacSystemFont, "SF Pro Rounded",
-        "Segoe UI", system-ui, sans-serif;
+  background-color: var(--canvas);
+  background-repeat: no-repeat;
+  background-image:
+    radial-gradient(720px 380px at 88% 40px, var(--lilac), transparent 70%),
+    radial-gradient(640px 340px at 4% 130px, var(--blush), transparent 68%),
+    linear-gradient(180deg,
+      var(--sky-1) 0px,
+      var(--sky-2) 190px,
+      var(--sky-3) 330px,
+      var(--canvas) 640px);
+  font: 400 17px/1.7 "Nunito", ui-rounded, "SF Pro Rounded", -apple-system,
+        BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .wrap { max-width: 660px; margin: 0 auto; }
 
-header { padding: 72px 0 8px; }
+/* Everything after the hero paints above the hero's stacking context, so the
+   hill can bleed down behind the first card without covering it. */
+.wrap > * { position: relative; z-index: 1; }
+
+/* --------------------------------------------------------------- masthead */
+
+.masthead {
+  padding: 42px 0 0;
+  text-align: center;
+}
 
 .wordmark {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.005em;
   color: var(--text);
   text-decoration: none;
+  border-radius: 999px;
+  padding: 4px 6px;
 }
 
-.wordmark .dot {
-  width: 15px; height: 15px; border-radius: 50%;
-  background: linear-gradient(150deg, #FFA451, #FB7A1E);
-  box-shadow: 0 0 16px rgba(250, 122, 24, 0.45);
+.wordmark:hover { color: var(--text); }
+
+.wordmark .mark {
+  display: block;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  filter: drop-shadow(0 3px 8px rgba(122, 74, 46, 0.16));
 }
+
+/* ------------------------------------------------------------------- hero */
+
+.hero {
+  position: relative;
+  z-index: 0;
+  text-align: center;
+  padding-top: var(--hero-pad);
+  margin-bottom: 42px;
+}
+
+/* The brand mark, full size: an orange disc rising over a soft cream arc.
+   Both shapes are CSS — no image asset is referenced anywhere on this site. */
+.hero .sun {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: 50%;
+  width: var(--sun-size);
+  height: var(--sun-size);
+  margin-left: calc(var(--sun-size) / -2);
+  border-radius: 50%;
+  background: linear-gradient(180deg,
+    var(--sun-a) 0%, var(--sun-b) 54%, var(--sun-c) 100%);
+  box-shadow: 0 0 40px 4px var(--halo-near), 0 0 84px 22px var(--halo-far);
+  animation: sun-breathe 9s ease-in-out infinite;
+}
+
+@keyframes sun-breathe {
+  0%, 100% { box-shadow: 0 0 40px 4px var(--halo-near), 0 0 84px 22px var(--halo-far); }
+  50%      { box-shadow: 0 0 52px 10px var(--halo-near), 0 0 118px 46px var(--halo-far); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero .sun { animation: none; }
+}
+
+.hero .hill {
+  position: absolute;
+  z-index: 2;
+  top: var(--crest-lift);
+  left: 50%;
+  width: max(170vw, 1200px);
+  height: 1100px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: linear-gradient(180deg,
+    var(--hill-1) 0%, var(--hill-2) 9%, var(--hill-3) 30%);
+  filter: blur(2px);
+}
+
+/* Warm bloom where the sun meets the ridge. */
+.hero .hill::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 420px;
+  height: 190px;
+  margin-left: -210px;
+  transform: translateY(-48%);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, var(--bloom), var(--bloom-0));
+  filter: blur(10px);
+}
+
+.hero h1,
+.hero p { position: relative; z-index: 3; }
+
+/* ------------------------------------------------------------- typography */
 
 h1 {
-  margin: 28px 0 6px;
-  font-size: clamp(30px, 6vw, 40px);
-  line-height: 1.12;
-  letter-spacing: -0.022em;
-  font-weight: 700;
+  margin: 0 0 18px;
+  font-size: clamp(32px, 8.5vw, 46px);
+  line-height: 1.1;
+  letter-spacing: -0.028em;
+  font-weight: 800;
+  text-wrap: balance;
 }
 
-.updated { margin: 0 0 40px; color: var(--text-tertiary); font-size: 14.5px; }
+/* Mixed-weight headlines, as in the app: part of the sentence lands in bold
+   near-black, the rest steps back to a lighter warm grey. */
+h1 .soft {
+  font-weight: 500;
+  color: var(--display-soft);
+}
+
+.updated {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 7px 16px;
+  border-radius: 999px;
+  background: var(--pill);
+  border: 1px solid var(--card-border);
+  box-shadow: 0 6px 18px -12px rgba(122, 74, 46, 0.4);
+  color: var(--text-tertiary);
+  font-size: 14px;
+  font-weight: 600;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
 
 .lede {
-  margin: 0 0 40px;
-  font-size: 19.5px;
-  line-height: 1.6;
+  max-width: 33em;
+  margin: 0 auto 40px;
+  font-size: 19px;
+  line-height: 1.65;
   color: var(--text-secondary);
+  text-wrap: pretty;
 }
+
+.hero .lede { margin-bottom: 0; }
+
+h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 11px;
+  margin: 0 0 14px;
+  font-size: 20px;
+  line-height: 1.35;
+  letter-spacing: -0.014em;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* A small sun beside every section heading, echoing the app's card headers. */
+h2::before {
+  content: "";
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: linear-gradient(160deg, var(--sun-a), var(--sun-c));
+  box-shadow: 0 0 0 3px rgba(250, 122, 24, 0.1);
+  transform: translateY(-1px);
+}
+
+p, li { color: var(--text-secondary); }
+p { margin: 0 0 16px; }
+strong { color: var(--text); font-weight: 700; }
+em { color: var(--text); font-style: italic; }
+
+a {
+  color: var(--accent-ink);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+a:hover { color: var(--accent-ink-hover); text-decoration-thickness: 2px; }
+
+a:focus-visible,
+.wordmark:focus-visible {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* ------------------------------------------------------------------ cards */
 
 .card {
   background: var(--card);
   border: 1px solid var(--card-border);
-  border-radius: 20px;
-  padding: 26px 30px;
-  margin: 0 0 34px;
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  border-radius: var(--radius);
+  padding: clamp(22px, 5vw, 30px) clamp(20px, 5vw, 32px);
+  margin: 0 0 18px;
+  box-shadow: var(--card-shadow);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
 }
 
-.card.headline p { margin: 0; font-size: 18px; color: var(--text); }
+.card > :first-child { margin-top: 0; }
+.card > :last-child { margin-bottom: 0; }
 
-h2 {
-  margin: 44px 0 12px;
-  font-size: 21px;
-  letter-spacing: -0.012em;
-  font-weight: 650;
+/* The one-line summary at the top of a page, given the weight the app gives
+   its headline number. */
+.card.headline {
+  background: var(--card-strong);
+  border-radius: calc(var(--radius) + 4px);
+  padding: clamp(26px, 6vw, 34px) clamp(22px, 6vw, 36px);
+  margin-bottom: 34px;
+  text-align: center;
 }
 
-h2:first-child { margin-top: 0; }
+.card.headline p {
+  margin: 0;
+  font-size: 18.5px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
 
-p, li { color: var(--text-secondary); }
-p { margin: 0 0 16px; }
-ul { margin: 0 0 16px; padding-left: 22px; }
-li { margin-bottom: 9px; }
+.card.headline strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: clamp(21px, 5.2vw, 24px);
+  line-height: 1.35;
+  letter-spacing: -0.018em;
+  font-weight: 800;
+  color: var(--text);
+}
 
-strong { color: var(--text); font-weight: 600; }
+/* Orange for the value that matters, as the app does with its times. */
+.hl { color: var(--accent-display); }
 
-a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
-a:hover { color: var(--accent-soft); }
+/* ------------------------------------------------------------------ lists */
+
+ul {
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+li {
+  position: relative;
+  margin-bottom: 11px;
+  padding-left: 22px;
+}
+
+li:last-child { margin-bottom: 0; }
+
+li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0.62em;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: linear-gradient(150deg, var(--accent-soft), var(--accent));
+}
+
+/* ----------------------------------------------------------------- footer */
 
 footer {
-  margin-top: 64px;
-  padding-top: 26px;
-  border-top: 1px solid var(--rule);
-  font-size: 14.5px;
-  color: var(--text-tertiary);
+  margin-top: 46px;
+  text-align: center;
 }
 
-footer a { margin-right: 18px; }
+.footer-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 999px;
+  background: var(--pill);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+}
 
-.nav { margin: 0 0 8px; }
+.footer-pill a {
+  padding: 9px 20px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-decoration: none;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.footer-pill a:hover {
+  color: var(--accent-ink-hover);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+@media (prefers-color-scheme: dark) {
+  .footer-pill a:hover { background: rgba(255, 255, 255, 0.07); }
+}

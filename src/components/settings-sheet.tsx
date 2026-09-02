@@ -72,6 +72,15 @@ export function SettingsSheet({ visible, onClose }: SettingsSheetProps) {
         Apple&apos;s geocoder. Nothing is sent to us, and there is no account.
       </Text>
 
+      {/*
+        suncalc is BSD-2-Clause, whose second condition requires the copyright
+        notice to travel with binary distributions. This is where it travels.
+      */}
+      <Text style={styles.about}>
+        Solar positions are computed with SunCalc, &copy; Volodymyr Agafonkin, used under the
+        BSD 2-Clause licence.
+      </Text>
+
       <Text style={styles.links}>
         <ExternalLink href={PRIVACY_URL} style={styles.link}>
           Privacy Policy

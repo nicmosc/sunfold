@@ -263,6 +263,14 @@ export default function HomeScreen() {
   const remaining = formatDuration(daylight.remainingMs);
   const sunriseTime = formatTime(summary.sunrise, location.timeZone, hour12);
   const sunsetTime = formatTime(summary.sunset, location.timeZone, hour12);
+  /*
+   * The cell between sunrise and sunset used to be an icon and the fixed words
+   * "Good Sun", which never changed with the day, the location or anything
+   * else — it read as a stat that had not been wired up. Solar noon is the real
+   * value that belongs there: it is the peak the arc above it is drawing, it
+   * exists even through a polar night, and `getDaySummary` already returns it.
+   */
+  const solarNoonTime = formatTime(summary.solarNoon, location.timeZone, hour12);
 
   const goldenHourStart = events.find((event) => event.key === 'goldenHourEveningStart');
   const goldenHourTime = formatTime(goldenHourStart?.date ?? null, location.timeZone, hour12);
@@ -445,8 +453,8 @@ export default function HomeScreen() {
               <Text style={styles.summaryLabel}>Sunrise</Text>
             </View>
             <View style={styles.summaryCell}>
-              <SymbolView name="sun.horizon.fill" size={22} tintColor={Colors.accent} />
-              <Text style={styles.summaryLabel}>Good Sun</Text>
+              <Text style={styles.summaryValue}>{solarNoonTime.time}</Text>
+              <Text style={styles.summaryLabel}>Solar noon</Text>
             </View>
             <View style={styles.summaryCell}>
               <Text style={styles.summaryValue}>{sunsetTime.time}</Text>

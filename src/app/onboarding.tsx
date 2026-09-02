@@ -105,7 +105,7 @@ export default function OnboardingScreen() {
           </Pressable>
 
           <Text style={styles.finePrint}>
-            Times are computed on your device. Nothing is uploaded.
+            Times are computed on your device. Nothing is sent to us.
           </Text>
         </View>
       </SafeAreaView>

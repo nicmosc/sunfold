@@ -8,7 +8,7 @@
     "scheme": "sunfold",
     "userInterfaceStyle": "light",
     "ios": {
-      "bundleIdentifier": "com.nicolaos.sunfold",
+      "bundleIdentifier": "com.nicolaos.goldenhour",
       "supportsTablet": false,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Sunfold uses your location to calculate the sunrise, sunset, golden hour and blue hour times for exactly where you are. Times are computed on your device; your coordinates go to Apple's geocoder only to name your location.",

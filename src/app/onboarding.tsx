@@ -11,17 +11,23 @@ import { useActiveLocation } from '@/hooks/use-active-location';
 import { useOnboarding } from '@/hooks/use-onboarding';
 
 /*
- * The app mark is the ICON artwork, not the in-app SunDisc component. Onboarding
- * is the first thing seen after tapping the home-screen icon, so using the same
- * image makes the two read as one app rather than two similar drawings.
+ * The app mark is the ICON itself, not the in-app SunDisc component. Onboarding
+ * is the first thing seen after tapping the home-screen icon, so showing the
+ * same artwork makes the two read as one app rather than two similar drawings.
  *
- * splash-icon.png is the icon without its background field, which is what sits
- * correctly inside the white tile.
+ * It is the FULL icon, background field included, clipped to the tile's radius —
+ * i.e. the home-screen icon reproduced, mask and all.
+ *
+ * It used to be splash-icon.png, the icon with its background stripped, floated
+ * at 122pt inside a 150pt white tile. That looked wrong on device and a tester
+ * reported it as broken: the artwork bleeds to the left, right and bottom of its
+ * own square (opaque bounds start at y=97 and run to every other edge), which is
+ * invisible under the iOS icon mask but becomes a hard flat crop with square
+ * corners once the square is floated, unmasked, inside a rounded box.
  */
-const APP_MARK = require('../../assets/images/splash-icon.png');
+const APP_MARK = require('../../assets/images/icon.png');
 
 const TILE_SIZE = 150;
-const MARK_SIZE = 122;
 const BUTTON_GRADIENT_START = { x: 0, y: 0 };
 const BUTTON_GRADIENT_END = { x: 1, y: 0 };
 
@@ -60,13 +66,20 @@ export default function OnboardingScreen() {
           <Text style={styles.welcome}>Welcome to</Text>
           <Text style={styles.wordmark}>Sunfold</Text>
 
+          {/*
+            Two layers, as in `Card` and for the same reason: iOS drops the
+            shadow on any view with `overflow: 'hidden'`, so the outer view
+            casts it and the inner one does the masking.
+          */}
           <View style={styles.tile}>
-            <Image
-              source={APP_MARK}
-              style={styles.mark}
-              contentFit="contain"
-              accessible={false}
-            />
+            <View style={styles.tileMask}>
+              <Image
+                source={APP_MARK}
+                style={styles.mark}
+                contentFit="cover"
+                accessible={false}
+              />
+            </View>
           </View>
 
           <Text style={styles.tagline}>
@@ -135,20 +148,28 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: -Spacing.md,
   },
-  /** The white rounded tile the mark sits in — carries the shadow. */
+  /** Outer layer: carries the shadow, and must NOT clip or iOS drops it. */
   tile: {
     width: TILE_SIZE,
     height: TILE_SIZE,
     borderRadius: Radius.lg * 1.6,
-    backgroundColor: Colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginVertical: Spacing.lg,
     ...Shadow.card,
   },
+  /**
+   * Inner layer: the mask. `Colors.white` shows only in the frame before the
+   * image decodes, so the tile never flashes as a dark or empty hole.
+   */
+  tileMask: {
+    flex: 1,
+    borderRadius: Radius.lg * 1.6,
+    backgroundColor: Colors.white,
+    overflow: 'hidden',
+  },
+  /** Fills the mask edge to edge: this is the icon, not a mark inset within it. */
   mark: {
-    width: MARK_SIZE,
-    height: MARK_SIZE,
+    width: '100%',
+    height: '100%',
   },
   tagline: {
     textAlign: 'center',
